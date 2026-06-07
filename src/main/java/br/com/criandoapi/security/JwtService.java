@@ -1,39 +1,45 @@
 package br.com.criandoapi.security;
 
+import br.com.criandoapi.entity.UsuarioRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
-import java.util.Map;
 import java.util.function.Function;
 
 @Service
 public class JwtService {
 
-    @Value("${JWT_SECRET:criando-api-secret-criando-api-secret-criando-api-secret}")
-    private String secret;
+    private static final String ROLE_CLAIM = "role";
 
-    @Value("${JWT_EXPIRATION_MS:86400000}")
-    private long expirationMs;
+    private final JwtProperties jwtProperties;
 
-    public String generateToken(String username) {
+    public JwtService(JwtProperties jwtProperties) {
+        this.jwtProperties = jwtProperties;
+    }
+
+    public String generateToken(String username, UsuarioRole role) {
         return Jwts.builder()
                 .subject(username)
-                .claims(Map.of())
+                .claim(ROLE_CLAIM, role.name())
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + expirationMs))
+                .expiration(new Date(System.currentTimeMillis() + jwtProperties.getExpirationMs()))
                 .signWith(getSigningKey())
                 .compact();
     }
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
+    }
+
+    public UsuarioRole extractRole(String token) {
+        String role = extractClaim(token, claims -> claims.get(ROLE_CLAIM, String.class));
+        return role != null ? UsuarioRole.valueOf(role) : UsuarioRole.USER;
     }
 
     public boolean isTokenValid(String token, String username) {
@@ -55,6 +61,7 @@ public class JwtService {
     }
 
     private SecretKey getSigningKey() {
+        String secret = jwtProperties.getSecret();
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {
             keyBytes = Decoders.BASE64.decode(secret);
@@ -62,4 +69,3 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }
-

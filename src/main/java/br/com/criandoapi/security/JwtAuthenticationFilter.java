@@ -1,5 +1,6 @@
 package br.com.criandoapi.security;
 
+import br.com.criandoapi.entity.Usuario;
 import br.com.criandoapi.repository.UsuarioRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -22,21 +23,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        boolean criarUsuarioSemToken = "/usuarios".equals(path) && "POST".equalsIgnoreCase(request.getMethod());
 
         return path.startsWith("/auth/")
-                || criarUsuarioSemToken
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/v3/api-docs")
                 || path.equals("/error");
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
         String authorizationHeader = request.getHeader("Authorization");
 
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token ausente");
+            JsonErrorWriter.write(response, HttpServletResponse.SC_UNAUTHORIZED, "Token ausente");
             return;
         }
 
@@ -44,17 +44,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             String email = jwtService.extractUsername(token);
+            Usuario usuario = email != null ? usuarioRepository.findByEmail(email).orElse(null) : null;
 
-            if (email == null || usuarioRepository.findByEmail(email).isEmpty() || !jwtService.isTokenValid(token, email)) {
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token invalido");
+            if (usuario == null || !jwtService.isTokenValid(token, email)) {
+                JsonErrorWriter.write(response, HttpServletResponse.SC_UNAUTHORIZED, "Token invalido");
                 return;
             }
 
-            request.setAttribute("usuarioEmail", email);
+            AuthenticatedUsuario authenticatedUser = new AuthenticatedUsuario(
+                    usuario.getId(),
+                    usuario.getEmail(),
+                    usuario.getRole()
+            );
+            request.setAttribute(RoleAuthorizationInterceptor.AUTHENTICATED_USER_ATTR, authenticatedUser);
             filterChain.doFilter(request, response);
         } catch (Exception e) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token invalido");
+            JsonErrorWriter.write(response, HttpServletResponse.SC_UNAUTHORIZED, "Token invalido");
         }
     }
 }
-

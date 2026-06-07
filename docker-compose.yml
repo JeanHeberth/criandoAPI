@@ -1,0 +1,38 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: criandoapi-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-crudApi}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: criandoapi-api
+    ports:
+      - "${SERVER_PORT:-8089}:8089"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: 8089
+      DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-crudApi}?createDatabaseIfNotExist=true&useTimezone=true&serverTimezone=UTC
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET deve ser definido}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
