@@ -5,6 +5,12 @@ import br.com.criandoapi.record.PedidoRequest;
 import br.com.criandoapi.record.PedidoResponse;
 import br.com.criandoapi.record.StatusRequest;
 import br.com.criandoapi.services.PedidoService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -16,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/pedidos")
+@Tag(name = "Pedidos", description = "CRUD de pedidos com máquina de estados. Requer autenticação JWT")
 public class PedidoController {
 
     private final PedidoService pedidoService;
@@ -24,67 +31,116 @@ public class PedidoController {
         this.pedidoService = pedidoService;
     }
 
-    /**
-     * Cria um novo pedido para o usuário autenticado.
-     * Teste: produto sem estoque → 422 | produto inativo → 422 | sem itens → 400
-     * Teste avançado: verifica se estoque foi baixado após criação
-     * [Requer Bearer Token]
-     */
     @PostMapping
+    @Operation(
+            summary = "Cria um novo pedido",
+            description = "Requer autenticação com token JWT. Cria um pedido para o usuário autenticado e baixa automaticamente o estoque dos produtos."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Pedido criado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos (lista de itens vazia, quantidade negativa, etc)"),
+            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido"),
+            @ApiResponse(responseCode = "404", description = "Produto não encontrado"),
+            @ApiResponse(
+                    responseCode = "422",
+                    description = "Erro de negócio: estoque insuficiente ou produto inativo",
+                    content = @Content(mediaType = "application/json", schema = @Schema(
+                            example = "{\"status\":422,\"erro\":\"Erro de Negócio\",\"mensagem\":\"Estoque insuficiente para o produto 'Notebook'. Disponível: 2, Solicitado: 5\"}"
+                    ))
+            )
+    })
     public ResponseEntity<PedidoResponse> criar(
-            @Valid @RequestBody PedidoRequest request,
+            @Valid @org.springframework.web.bind.annotation.RequestBody PedidoRequest request,
             HttpServletRequest httpRequest) {
         return ResponseEntity.status(HttpStatus.CREATED).body(pedidoService.criar(request, httpRequest));
     }
 
-    /**
-     * Lista pedidos do usuário autenticado.
-     * Teste paginação: GET /pedidos?page=0&size=5
-     * Teste filtro status: GET /pedidos?status=PENDENTE
-     * [Requer Bearer Token]
-     */
     @GetMapping
+    @Operation(
+            summary = "Lista pedidos do usuário autenticado",
+            description = "Requer autenticação com token JWT. Retorna pedidos do usuário logado com paginação e filtro opcional por status."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista de pedidos (paginada)"),
+            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido")
+    })
     public ResponseEntity<Page<PedidoResponse>> listar(
-            @RequestParam(required = false) PedidoStatus status,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) PedidoStatus status,
             @PageableDefault(size = 10, sort = "criadoEm") Pageable pageable,
             HttpServletRequest httpRequest) {
         return ResponseEntity.ok(pedidoService.listar(status, httpRequest, pageable));
     }
 
-    /**
-     * Busca pedido específico do usuário autenticado.
-     * Teste: pedido de outro usuário → 404 (isolamento por usuário)
-     * [Requer Bearer Token]
-     */
     @GetMapping("/{id}")
+    @Operation(
+            summary = "Busca pedido por ID",
+            description = "Requer autenticação com token JWT. Retorna detalhes de um pedido específico. Isolamento por usuário: só pode acessar pedidos próprios."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Pedido encontrado"),
+            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido"),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Pedido não encontrado ou pertence a outro usuário (isolamento)"
+            )
+    })
     public ResponseEntity<PedidoResponse> buscarPorId(
             @PathVariable Long id,
             HttpServletRequest httpRequest) {
         return ResponseEntity.ok(pedidoService.buscarPorId(id, httpRequest));
     }
 
-    /**
-     * Transiciona o status do pedido.
-     * Fluxo: PENDENTE → CONFIRMADO → EM_PREPARO → ENVIADO → ENTREGUE
-     * Cancelamento: PENDENTE ou CONFIRMADO → CANCELADO
-     * Teste avançado: transição inválida → 422 com mensagem explicativa
-     * [Requer Bearer Token]
-     */
     @PatchMapping("/{id}/status")
+    @Operation(
+            summary = "Transiciona o status do pedido (máquina de estados)",
+            description = "Requer autenticação com token JWT. Transiciona o pedido entre estados: PENDENTE → CONFIRMADO → EM_PREPARO → ENVIADO → ENTREGUE. Cancelamento permitido de PENDENTE e CONFIRMADO."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Status transicionado com sucesso",
+                    content = @Content(mediaType = "application/json", schema = @Schema(
+                            example = "{\"id\":1,\"status\":\"CONFIRMADO\",\"valorTotal\":7000.00}"
+                    ))
+            ),
+            @ApiResponse(responseCode = "400", description = "Status inválido no request"),
+            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido"),
+            @ApiResponse(responseCode = "404", description = "Pedido não encontrado"),
+            @ApiResponse(
+                    responseCode = "422",
+                    description = "Transição de estado inválida",
+                    content = @Content(mediaType = "application/json", schema = @Schema(
+                            example = "{\"status\":422,\"erro\":\"Erro de Negócio\",\"mensagem\":\"Transição inválida: ENTREGUE → PENDENTE. Transições permitidas a partir de ENTREGUE: []\"}"
+                    ))
+            )
+    })
     public ResponseEntity<PedidoResponse> transicionarStatus(
             @PathVariable Long id,
-            @Valid @RequestBody StatusRequest request,
+            @Valid @org.springframework.web.bind.annotation.RequestBody StatusRequest request,
             HttpServletRequest httpRequest) {
         return ResponseEntity.ok(pedidoService.transicionarStatus(id, request, httpRequest));
     }
 
-    /**
-     * Cancela pedido (somente se PENDENTE). Devolve estoque automaticamente.
-     * Teste: cancelar pedido CONFIRMADO → 422 | cancelar pedido PENDENTE → 204
-     * [Requer Bearer Token]
-     */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> cancelar(@PathVariable Long id, HttpServletRequest httpRequest) {
+    @Operation(
+            summary = "Cancela um pedido",
+            description = "Requer autenticação com token JWT. Cancela o pedido e devolve o estoque dos produtos (somente se status = PENDENTE)."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Pedido cancelado com sucesso e estoque devolvido"),
+            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido"),
+            @ApiResponse(responseCode = "404", description = "Pedido não encontrado"),
+            @ApiResponse(
+                    responseCode = "422",
+                    description = "Erro de negócio: pedido não está em status PENDENTE",
+                    content = @Content(mediaType = "application/json", schema = @Schema(
+                            example = "{\"status\":422,\"erro\":\"Erro de Negócio\",\"mensagem\":\"Apenas pedidos com status PENDENTE podem ser cancelados. Status atual: CONFIRMADO\"}"
+                    ))
+            )
+    })
+    public ResponseEntity<Void> cancelar(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
         pedidoService.cancelar(id, httpRequest);
         return ResponseEntity.noContent().build();
     }
