@@ -16,6 +16,15 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
+  jackson:
+    time-zone: UTC
+    default-property-inclusion: non_null
+  data:
+    web:
+      pageable:
+        default-page-size: 10
+        max-page-size: 100
+        one-indexed-parameters: false
 
 server:
   port: ${SERVER_PORT:8089}
@@ -30,5 +39,4 @@ springdoc:
     path: /swagger-ui.html
   api-docs:
     path: /v3/api-docs
-
 
