@@ -3,6 +3,7 @@ package br.com.criandoapi.controller;
 import br.com.criandoapi.record.UsuarioRequest;
 import br.com.criandoapi.record.UsuarioResponse;
 import br.com.criandoapi.services.UsuarioService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +21,7 @@ public class UsuarioController {
     }
 
     @PostMapping
-    public ResponseEntity<UsuarioResponse> criar(@RequestBody UsuarioRequest usuarioRequest) {
+    public ResponseEntity<UsuarioResponse> criar(@Valid @RequestBody UsuarioRequest usuarioRequest) {
         return ResponseEntity.status(HttpStatus.CREATED).body(usuarioService.criarUsuario(usuarioRequest));
     }
 
@@ -39,9 +40,10 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarioService.buscarPorNome(nome));
     }
 
-
     @PutMapping("/{id}")
-    public ResponseEntity<UsuarioResponse> atualizar(@PathVariable Long id, @RequestBody UsuarioRequest usuarioRequest) {
+    public ResponseEntity<UsuarioResponse> atualizar(
+            @PathVariable Long id,
+            @Valid @RequestBody UsuarioRequest usuarioRequest) {
         return ResponseEntity.ok(usuarioService.atualizarUsuario(id, usuarioRequest));
     }
 

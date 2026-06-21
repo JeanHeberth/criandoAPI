@@ -30,9 +30,28 @@ public class OpenApiConfig {
 	public OpenAPI customOpenAPI() {
 		return new OpenAPI()
 				.info(new Info()
-						.title("Criando API")
-						.version("v1")
-						.description("Documentacao Swagger da API com autenticacao JWT"))
+						.title("Criando API — Prática de Testes")
+						.version("2.0.0")
+						.description("""
+								API criada para aprendizado de testes (básico ao avançado).
+								
+								## Módulos disponíveis
+								- **Auth** — Login e Registro com JWT
+								- **Usuários** — CRUD completo com validações
+								- **Produtos** — CRUD com paginação, filtros e soft delete
+								- **Pedidos** — Criação, acompanhamento e máquina de estados de status
+								- **Health** — Verificação pública de disponibilidade
+								
+								## Cenários de teste cobertos
+								- 200 OK, 201 Created, 204 No Content
+								- 400 Bad Request (validações de campos)
+								- 401 Unauthorized (token ausente/inválido)
+								- 404 Not Found (recurso inexistente)
+								- 409 Conflict (e-mail/produto duplicado)
+								- 422 Unprocessable Entity (regra de negócio)
+								- Paginação e filtros
+								- Máquina de estados (status do pedido)
+								"""))
 				.components(new Components()
 						.addSecuritySchemes(SECURITY_SCHEME_NAME,
 								new SecurityScheme()
