@@ -4,6 +4,7 @@ import br.com.criandoapi.record.ErroResponse;
 import br.com.criandoapi.record.ErroValidacaoResponse;
 import br.com.criandoapi.record.ErroValidacaoResponse.CampoErro;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Locale;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -63,12 +65,41 @@ public class GlobalExceptionHandler {
             NegocioException ex, HttpServletRequest request) {
 
         ErroResponse erro = ErroResponse.of(
-                HttpStatus.UNPROCESSABLE_ENTITY.value(),
+                HttpStatus.UNPROCESSABLE_CONTENT.value(),
                 "Erro de Negócio",
                 ex.getMessage(),
                 request.getRequestURI()
         );
-        return ResponseEntity.unprocessableEntity().body(erro);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(erro);
+    }
+
+    /**
+     * 422 - Erros de integridade/dados (ex: valor fora do limite decimal da coluna)
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErroResponse> handleDataIntegrity(
+            DataIntegrityViolationException ex, HttpServletRequest request) {
+
+        Throwable causaMaisEspecifica = ex.getMostSpecificCause();
+        String causa = (causaMaisEspecifica != null) ? causaMaisEspecifica.getMessage() : ex.getMessage();
+
+        String mensagem = "Nao foi possivel processar os dados informados. Revise os valores e tente novamente.";
+        if (causa != null) {
+            String causaNormalizada = causa.toLowerCase(Locale.ROOT);
+            if (causaNormalizada.contains("out of range value")
+                    || causaNormalizada.contains("data truncation")
+                    || causaNormalizada.contains("valor_total")) {
+                mensagem = "Valor total do pedido excede o limite permitido de 9.999.999.999.999,99. Revise quantidade ou valor dos itens.";
+            }
+        }
+
+        ErroResponse erro = ErroResponse.of(
+                HttpStatus.UNPROCESSABLE_CONTENT.value(),
+                "Erro de Negocio",
+                mensagem,
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(erro);
     }
 
     /**

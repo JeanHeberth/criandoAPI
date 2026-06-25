@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import static org.springframework.http.HttpStatus.FORBIDDEN;
@@ -20,6 +21,8 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
 public class PedidoService {
+
+    private static final BigDecimal LIMITE_MAXIMO_VALOR_TOTAL = new BigDecimal("9999999999999.99");
 
     private final PedidoRepository pedidoRepository;
     private final ProdutoRepository produtoRepository;
@@ -64,7 +67,16 @@ public class PedidoService {
         }
 
         pedido.calcularTotal();
+        validarLimiteValorTotal(pedido.getValorTotal());
         return toResponse(pedidoRepository.save(pedido));
+    }
+
+    private void validarLimiteValorTotal(BigDecimal valorTotal) {
+        if (valorTotal.compareTo(LIMITE_MAXIMO_VALOR_TOTAL) > 0) {
+            throw new NegocioException(
+                    "Valor total do pedido excede o limite permitido de 9.999.999.999.999,99. Revise quantidade ou valor dos itens."
+            );
+        }
     }
 
     public Page<PedidoResponse> listar(PedidoStatus status, HttpServletRequest httpRequest, Pageable pageable) {
