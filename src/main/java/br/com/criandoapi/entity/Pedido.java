@@ -32,7 +32,7 @@ public class Pedido {
     @Column(nullable = false)
     private PedidoStatus status = PedidoStatus.PENDENTE;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal valorTotal = BigDecimal.ZERO;
 
     @Column(nullable = false, updatable = false)

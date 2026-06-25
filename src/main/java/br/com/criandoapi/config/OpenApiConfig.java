@@ -30,27 +30,21 @@ public class OpenApiConfig {
 	public OpenAPI customOpenAPI() {
 		return new OpenAPI()
 				.info(new Info()
-						.title("Criando API — Prática de Testes")
+						.title("Criando API - Pratica de Testes")
 						.version("2.0.0")
 						.description("""
-								API criada para aprendizado de testes (básico ao avançado).
+								API de estudo com modulos: Auth, Usuarios, Produtos, Pedidos e Health.
 								
-								## Módulos disponíveis
-								- **Auth** — Login e Registro com JWT
-								- **Usuários** — CRUD completo com validações
-								- **Produtos** — CRUD com paginação, filtros e soft delete
-								- **Pedidos** — Criação, acompanhamento e máquina de estados de status
-								- **Health** — Verificação pública de disponibilidade
+								Status code padrao documentados nos endpoints:
+								200, 201, 204, 400, 401, 404, 409, 422.
+
+								Paginacao:
+								- page: numero da pagina (comeca em 0)
+								- size: quantidade por pagina
+								- sort: formato campo,direcao (ex.: criadoEm,desc ou nome,asc)
 								
-								## Cenários de teste cobertos
-								- 200 OK, 201 Created, 204 No Content
-								- 400 Bad Request (validações de campos)
-								- 401 Unauthorized (token ausente/inválido)
-								- 404 Not Found (recurso inexistente)
-								- 409 Conflict (e-mail/produto duplicado)
-								- 422 Unprocessable Entity (regra de negócio)
-								- Paginação e filtros
-								- Máquina de estados (status do pedido)
+								Para endpoints protegidos, use JWT no botao Authorize:
+								Bearer <token>
 								"""))
 				.components(new Components()
 						.addSecuritySchemes(SECURITY_SCHEME_NAME,
@@ -69,7 +63,7 @@ public class OpenApiConfig {
 		String contextPath = normalizePath(environment.getProperty("server.servlet.context-path", ""));
 		String swaggerPath = normalizePath(environment.getProperty("springdoc.swagger-ui.path", "/swagger-ui.html"));
 
-		log.info("Swagger disponível em: http://localhost:{}{}{}", port, contextPath, swaggerPath);
+		log.info("Swagger disponivel em: http://localhost:{}{}{}", port, contextPath, swaggerPath);
 	}
 
 	private String normalizePath(String path) {
@@ -80,4 +74,3 @@ public class OpenApiConfig {
 		return path.startsWith("/") ? path : "/" + path;
 	}
 }
-
