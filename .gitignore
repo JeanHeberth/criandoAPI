@@ -40,3 +40,5 @@ out/
 # Pasta local de agentes (nao versionar)
 /agents/
 
+
+.github/agents/
