@@ -14,7 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("${api.version-prefix}/auth")
 @Tag(name = "Autenticação", description = "Endpoints de login e registro com JWT")
 public class AuthController {
 

@@ -31,6 +31,9 @@ server:
   servlet:
     context-path: ${SERVER_SERVLET_CONTEXT_PATH:/criandoApi}
 
+api:
+  version-prefix: ${API_VERSION_PREFIX:/v1}
+
 logging:
   level:
     org.hibernate.SQL: DEBUG
