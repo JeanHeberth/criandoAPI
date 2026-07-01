@@ -21,7 +21,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
+        String path = extractPathWithoutContext(request);
         String method = request.getMethod();
 
         // POST /usuarios — criar conta sem token
@@ -33,10 +33,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return path.startsWith("/auth/")
                 || criarUsuarioSemToken
                 || produtosPublico
-                || path.startsWith("/health")
+                || path.startsWith("/actuator/health")
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/v3/api-docs")
                 || path.equals("/error");
+    }
+
+    private String extractPathWithoutContext(HttpServletRequest request) {
+        String requestUri = request.getRequestURI();
+        String contextPath = request.getContextPath();
+
+        if (contextPath == null || contextPath.isEmpty()) {
+            return requestUri;
+        }
+
+        String normalizedPath = requestUri.substring(contextPath.length());
+        return normalizedPath.isEmpty() ? "/" : normalizedPath;
     }
 
     @Override
@@ -65,4 +77,3 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 }
-

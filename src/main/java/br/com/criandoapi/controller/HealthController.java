@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/health")
+@RequestMapping("/actuator/health")
 @Tag(name = "Health", description = "Verifica a disponibilidade da API")
 public class HealthController {
 

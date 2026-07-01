@@ -65,12 +65,12 @@ public class GlobalExceptionHandler {
             NegocioException ex, HttpServletRequest request) {
 
         ErroResponse erro = ErroResponse.of(
-                HttpStatus.UNPROCESSABLE_CONTENT.value(),
+                HttpStatus.UNPROCESSABLE_ENTITY.value(),
                 "Erro de Negócio",
                 ex.getMessage(),
                 request.getRequestURI()
         );
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(erro);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(erro);
     }
 
     /**
@@ -94,12 +94,12 @@ public class GlobalExceptionHandler {
         }
 
         ErroResponse erro = ErroResponse.of(
-                HttpStatus.UNPROCESSABLE_CONTENT.value(),
+                HttpStatus.UNPROCESSABLE_ENTITY.value(),
                 "Erro de Negocio",
                 mensagem,
                 request.getRequestURI()
         );
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(erro);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(erro);
     }
 
     /**
