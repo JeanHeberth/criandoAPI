@@ -22,7 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/pedidos")
+@RequestMapping("${api.version-prefix}/pedidos")
 @Tag(name = "Pedidos", description = "CRUD de pedidos")
 public class PedidoController {
 

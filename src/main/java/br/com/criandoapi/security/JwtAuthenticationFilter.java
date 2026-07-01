@@ -21,7 +21,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = extractPathWithoutContext(request);
+        String path = removeApiVersionPrefix(extractPathWithoutContext(request));
         String method = request.getMethod();
 
         // POST /usuarios — criar conta sem token
@@ -49,6 +49,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String normalizedPath = requestUri.substring(contextPath.length());
         return normalizedPath.isEmpty() ? "/" : normalizedPath;
+    }
+
+    private String removeApiVersionPrefix(String path) {
+        if (path == null || path.isBlank()) {
+            return "/";
+        }
+
+        String normalizedPath = path.startsWith("/") ? path : "/" + path;
+        return normalizedPath.replaceFirst("^/v\\d+(?=/|$)", "");
     }
 
     @Override

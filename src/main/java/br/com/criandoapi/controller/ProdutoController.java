@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 
 @RestController
-@RequestMapping("/produtos")
+@RequestMapping("${api.version-prefix}/produtos")
 @Tag(name = "Produtos", description = "CRUD de produtos")
 public class ProdutoController {
 
