@@ -3,17 +3,21 @@ package br.com.criandoapi.exception;
 import br.com.criandoapi.record.ErroResponse;
 import br.com.criandoapi.record.ErroValidacaoResponse;
 import br.com.criandoapi.record.ErroValidacaoResponse.CampoErro;
+import tools.jackson.databind.exc.InvalidFormatException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -35,6 +39,37 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 request.getRequestURI(),
                 campos
+        );
+        return ResponseEntity.badRequest().body(erro);
+    }
+
+    /**
+     * 400 - JSON com valor invalido para enum ou tipo incompativel
+     * Util para testar: categoria invalida, tipo errado no campo
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErroResponse> handleMensagemNaoLegivel(
+            HttpMessageNotReadableException ex, HttpServletRequest request) {
+
+        String mensagem = "O corpo da requisicao esta mal formado ou contem valor invalido.";
+
+        Throwable causa = ex.getCause();
+        if (causa instanceof InvalidFormatException ife && ife.getTargetType() != null && ife.getTargetType().isEnum()) {
+            String valoresAceitos = Arrays.stream(ife.getTargetType().getEnumConstants())
+                    .map(Object::toString)
+                    .collect(Collectors.joining(", "));
+            mensagem = String.format(
+                    "Valor '%s' invalido. Valores aceitos para este campo: %s.",
+                    ife.getValue(),
+                    valoresAceitos
+            );
+        }
+
+        ErroResponse erro = ErroResponse.of(
+                HttpStatus.BAD_REQUEST.value(),
+                "Requisicao Invalida",
+                mensagem,
+                request.getRequestURI()
         );
         return ResponseEntity.badRequest().body(erro);
     }

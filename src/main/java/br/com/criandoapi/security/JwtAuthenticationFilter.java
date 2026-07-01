@@ -27,13 +27,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // POST /usuarios — criar conta sem token
         boolean criarUsuarioSemToken = "/usuarios".equals(path) && "POST".equalsIgnoreCase(method);
 
-        // GET /produtos/** — listagem pública de produtos
-        boolean produtosPublico = path.startsWith("/produtos") && "GET".equalsIgnoreCase(method);
-
         return path.startsWith("/auth/")
                 || criarUsuarioSemToken
-                || produtosPublico
-                || path.startsWith("/health")
+                || path.startsWith("/actuator/health")
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/v3/api-docs")
                 || path.equals("/error");
