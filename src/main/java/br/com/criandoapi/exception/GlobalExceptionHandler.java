@@ -7,13 +7,18 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -35,6 +40,59 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 request.getRequestURI(),
                 campos
+        );
+        return ResponseEntity.badRequest().body(erro);
+    }
+
+    /**
+     * 400 - JSON malformado ou valor inválido para tipo/campo (ex.: enum inválido no body)
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErroResponse> handleMensagemNaoLegivel(
+            HttpMessageNotReadableException ex, HttpServletRequest request) {
+
+        String mensagem = "O corpo da requisicao esta mal formado ou contem valor invalido.";
+        Throwable causa = ex.getMostSpecificCause();
+        if (causa instanceof InvalidFormatException ife) {
+            String valor = String.valueOf(ife.getValue());
+            Class<?> tipoAlvo = ife.getTargetType();
+
+            if (tipoAlvo != null && tipoAlvo.isEnum()) {
+                String aceitos = acceptedEnumValues(tipoAlvo);
+                mensagem = "Valor '" + valor + "' invalido. Valores aceitos para este campo: " + aceitos + ".";
+            } else {
+                mensagem = "Valor '" + valor + "' invalido para o tipo esperado no campo informado.";
+            }
+        }
+
+        ErroResponse erro = ErroResponse.of(
+                HttpStatus.BAD_REQUEST.value(),
+                "Requisicao Invalida",
+                mensagem,
+                request.getRequestURI()
+        );
+        return ResponseEntity.badRequest().body(erro);
+    }
+
+    /**
+     * 400 - Parametro de rota/query invalido (ex.: /produtos/categoria/TESTE)
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErroResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+
+        String mensagem = "Parametro '" + ex.getName() + "' invalido.";
+        Class<?> tipo = ex.getRequiredType();
+        if (tipo != null && tipo.isEnum()) {
+            mensagem = "Valor '" + ex.getValue() + "' invalido para o parametro '" + ex.getName()
+                    + "'. Valores aceitos: " + acceptedEnumValues(tipo) + ".";
+        }
+
+        ErroResponse erro = ErroResponse.of(
+                HttpStatus.BAD_REQUEST.value(),
+                "Requisicao Invalida",
+                mensagem,
+                request.getRequestURI()
         );
         return ResponseEntity.badRequest().body(erro);
     }
@@ -134,6 +192,12 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
         return ResponseEntity.internalServerError().body(erro);
+    }
+
+    private String acceptedEnumValues(Class<?> enumType) {
+        return Arrays.stream(enumType.getEnumConstants())
+                .map(String::valueOf)
+                .collect(Collectors.joining(", "));
     }
 }
 

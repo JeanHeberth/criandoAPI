@@ -29,7 +29,7 @@ spring:
 server:
   port: ${SERVER_PORT:8089}
   servlet:
-    context-path: ${SERVER_SERVLET_CONTEXT_PATH:/criandoApi}
+    context-path: ${SERVER_SERVLET_CONTEXT_PATH:/criandoAPI}
 
 api:
   version-prefix: ${API_VERSION_PREFIX:/v1}
