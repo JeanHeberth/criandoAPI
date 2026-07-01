@@ -42,6 +42,6 @@ logging:
 
 springdoc:
   swagger-ui:
-    path: ${api.version-prefix}/swagger-ui.html
+    path: ${api.version-prefix:/v1}/swagger-ui.html
   api-docs:
-    path: ${api.version-prefix}/v3/api-docs
+    path: ${api.version-prefix:/v1}/api-docs
