@@ -28,6 +28,8 @@ spring:
 
 server:
   port: ${SERVER_PORT:8089}
+  servlet:
+    context-path: ${SERVER_SERVLET_CONTEXT_PATH:/criandoApi}
 
 logging:
   level:
@@ -39,4 +41,3 @@ springdoc:
     path: /swagger-ui.html
   api-docs:
     path: /v3/api-docs
-
