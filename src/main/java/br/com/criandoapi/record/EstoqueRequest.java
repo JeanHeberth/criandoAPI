@@ -9,6 +9,6 @@ public record EstoqueRequest(
         @Schema(description = "Nova quantidade em estoque (0 = sem estoque, não aceita negativos)", example = "100", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotNull(message = "Quantidade é obrigatória")
         @Min(value = 0, message = "Quantidade não pode ser negativa")
-        Integer quantidade
+        Integer estoque
 ) {
 }
