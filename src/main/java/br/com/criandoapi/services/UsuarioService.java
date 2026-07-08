@@ -46,10 +46,15 @@ public class UsuarioService {
     }
 
     public List<UsuarioResponse> buscarPorNome(String nome) {
-        return usuarioRepository.findByNomeContainingIgnoreCase(nome)
+        List<UsuarioResponse> usuarios = usuarioRepository.findByNomeContainingIgnoreCase(nome)
                 .stream()
                 .map(this::toResponse)
                 .toList();
+
+        if (usuarios.isEmpty()) {
+            throw new ResponseStatusException(NOT_FOUND, "Nenhum usuario encontrado com nome: " + nome);
+        }
+        return usuarios;
     }
 
     public UsuarioResponse atualizarUsuario(Long id, UsuarioRequest usuarioRequest) {
@@ -59,7 +64,9 @@ public class UsuarioService {
         // Verifica conflito de e-mail somente se mudou para outro
         usuarioRepository.findByEmail(usuarioRequest.email())
                 .filter(u -> !u.getId().equals(id))
-                .ifPresent(u -> { throw new ConflictException("E-mail '" + usuarioRequest.email() + "' já está em uso"); });
+                .ifPresent(u -> {
+                    throw new ConflictException("E-mail '" + usuarioRequest.email() + "' já está em uso");
+                });
 
         usuario.atualizar(usuarioRequest.nome(), usuarioRequest.email(), PasswordUtils.hash(usuarioRequest.senha()));
         return toResponse(usuarioRepository.save(usuario));
@@ -76,4 +83,3 @@ public class UsuarioService {
         return new UsuarioResponse(u.getId(), u.getNome(), u.getEmail());
     }
 }
-
