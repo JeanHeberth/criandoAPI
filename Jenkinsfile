@@ -37,10 +37,10 @@ pipeline {
         }
 
         stage('Deploy WAR to Tomcat') {
-
             when {
                 expression {
                     def gitBranch = (env.GIT_BRANCH ?: '').toLowerCase()
+
                     return gitBranch == 'origin/main' ||
                            gitBranch == 'origin/master'
                 }
@@ -48,9 +48,7 @@ pipeline {
 
             steps {
                 script {
-
                     if (isUnix()) {
-
                         sh '''
                             export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
@@ -73,14 +71,13 @@ pipeline {
 
                             echo "Deploy realizado com sucesso."
                         '''
-
                     } else {
-
                         bat '''
+                            @echo off
+
                             echo Procurando arquivo WAR...
 
                             for %%F in ("%WORKSPACE%\\build\\libs\\*.war") do (
-
                                 echo WAR encontrado: %%~nxF
 
                                 copy /Y "%%~fF" "%TOMCAT_WEBAPPS_WINDOWS%\\%%~nxF"
@@ -99,95 +96,109 @@ pipeline {
         }
 
         stage('Aguardar API iniciar') {
+            when {
+                expression {
+                    def gitBranch = (env.GIT_BRANCH ?: '').toLowerCase()
+
+                    return gitBranch == 'origin/main' ||
+                           gitBranch == 'origin/master'
+                }
+            }
+
             steps {
                 script {
-
                     if (isUnix()) {
-
                         sh '''
                             echo "Aguardando API..."
 
-                            for i in {1..12}; do
+                            for i in $(seq 1 12); do
+                                echo "Tentativa $i de 12..."
 
-                                if curl --silent --fail "$API_URL_UNIX" >/dev/null; then
+                                if curl --silent --fail "$API_URL_UNIX" > /dev/null; then
                                     echo "API disponível."
                                     exit 0
                                 fi
 
-                                echo "Tentativa $i de 12..."
                                 sleep 5
-
                             done
 
-                            echo "API não iniciou."
+                            echo "ERRO: API não iniciou dentro do tempo esperado."
                             exit 1
                         '''
-
                     } else {
-
                         bat '''
                             @echo off
 
                             echo Aguardando API...
 
                             for /L %%i in (1,1,12) do (
+                                echo Tentativa %%i de 12...
 
-                                curl --silent --fail %API_URL_WINDOWS% >nul
+                                curl --silent --fail "%API_URL_WINDOWS%" >nul 2>&1
 
                                 if not errorlevel 1 (
-                                    echo API disponível.
+                                    echo API disponivel.
                                     exit /b 0
                                 )
 
-                                echo Tentativa %%i de 12...
                                 timeout /t 5 /nobreak >nul
                             )
 
-                            echo API não iniciou.
+                            echo ERRO: API nao iniciou dentro do tempo esperado.
                             exit /b 1
                         '''
                     }
                 }
             }
         }
-    }
 
-post {
+        stage('Executar pipeline de testes') {
+            when {
+                expression {
+                    def gitBranch = (env.GIT_BRANCH ?: '').toLowerCase()
 
-    always {
-        echo 'Pipeline da API concluída.'
-    }
+                    return gitBranch == 'origin/main' ||
+                           gitBranch == 'origin/master'
+                }
+            }
 
-    success {
-        script {
-            echo 'Build e Deploy executados com sucesso!'
-            echo 'Disparando pipeline de testes...'
+            steps {
+                script {
+                    echo 'Disparando pipeline testeCriandoAPI...'
 
-            def resultadoTestes = build(
-                job: 'testeCriandoAPI',
-                wait: true,
-                propagate: false
-            )
+                    def resultadoTestes = build(
+                        job: 'testeCriandoAPI',
+                        wait: true,
+                        propagate: false
+                    )
 
-            echo "Resultado da pipeline de testes: ${resultadoTestes.result}"
-            echo "Execução dos testes: ${resultadoTestes.fullDisplayName}"
+                    echo "Resultado da pipeline de testes: ${resultadoTestes.result}"
+                    echo "Execução: ${resultadoTestes.fullDisplayName}"
 
-            if (resultadoTestes.result == 'SUCCESS') {
-                echo 'API publicada e testes automatizados aprovados!'
-            } else {
-                error("""
-                    A API foi publicada, mas os testes automatizados falharam.
+                    if (resultadoTestes.result != 'SUCCESS') {
+                        error(
+                            "A API foi publicada, mas a pipeline de testes terminou com status: " +
+                            "${resultadoTestes.result}"
+                        )
+                    }
 
-                    Pipeline: ${resultadoTestes.fullDisplayName}
-                    Resultado: ${resultadoTestes.result}
-
-                    Consulte o Console Output da pipeline testeCriandoAPI.
-                """)
+                    echo 'Todos os testes automatizados foram aprovados.'
+                }
             }
         }
     }
 
-    failure {
-        echo 'Falha durante o build, deploy ou execução dos testes.'
+    post {
+        always {
+            echo 'Pipeline concluída.'
+        }
+
+        success {
+            echo 'Build, deploy e testes executados com sucesso!'
+        }
+
+        failure {
+            echo 'Falha detectada no build, deploy ou nos testes automatizados.'
+        }
     }
 }
