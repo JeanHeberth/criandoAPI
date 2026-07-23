@@ -5,8 +5,8 @@ pipeline {
         TOMCAT_WEBAPPS_WINDOWS = 'C:\\apache-tomcat-11.0.11\\webapps'
         TOMCAT_WEBAPPS_UNIX    = '/opt/homebrew/opt/tomcat/libexec/webapps'
 
-        API_URL_WINDOWS = 'http://localhost:9999/criandoAPI/v1/actuator/health'
-        API_URL_UNIX    = 'http://localhost:8080/criandoAPI/v1/actuator/health'
+        API_URL_WINDOWS = 'http://100.83.72.100:9999/criandoAPI/v1/actuator/health'
+        API_URL_UNIX    = 'http://100.83.72.100:9999/criandoAPI/v1/actuator/health'
     }
 
     stages {
