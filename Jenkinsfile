@@ -27,10 +27,17 @@ pipeline {
                             export PATH="$JAVA_HOME/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
                             chmod +x gradlew
+
                             ./gradlew clean build -x test
                         '''
                     } else {
-                        bat 'gradlew clean build -x test'
+                        bat '''
+                            @echo off
+
+                            echo Executando build com Gradle...
+
+                            gradlew.bat clean build -x test
+                        '''
                     }
                 }
             }
@@ -52,12 +59,12 @@ pipeline {
                         sh '''
                             export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
-                            echo "Procurando WAR..."
+                            echo "Procurando arquivo WAR..."
 
                             WAR_FILE=$(find build/libs -name "*.war" | head -n 1)
 
                             if [ -z "$WAR_FILE" ]; then
-                                echo "ERRO: Nenhum WAR encontrado."
+                                echo "ERRO: Nenhum arquivo WAR foi encontrado."
                                 exit 1
                             fi
 
@@ -69,7 +76,7 @@ pipeline {
 
                             cp -f "$WAR_FILE" "$TOMCAT_WEBAPPS_UNIX/$WAR_NAME"
 
-                            echo "Deploy realizado com sucesso."
+                            echo "Deploy concluído com sucesso."
                         '''
                     } else {
                         bat '''
@@ -77,17 +84,25 @@ pipeline {
 
                             echo Procurando arquivo WAR...
 
+                            set "WAR_ENCONTRADO="
+
                             for %%F in ("%WORKSPACE%\\build\\libs\\*.war") do (
+                                set "WAR_ENCONTRADO=%%~fF"
+
                                 echo WAR encontrado: %%~nxF
 
                                 copy /Y "%%~fF" "%TOMCAT_WEBAPPS_WINDOWS%\\%%~nxF"
 
-                                echo Deploy concluido.
+                                if errorlevel 1 (
+                                    echo ERRO: Nao foi possivel copiar o WAR para o Tomcat.
+                                    exit /b 1
+                                )
 
+                                echo Deploy concluido com sucesso.
                                 exit /b 0
                             )
 
-                            echo ERRO: Nenhum WAR encontrado.
+                            echo ERRO: Nenhum arquivo WAR foi encontrado.
                             exit /b 1
                         '''
                     }
@@ -105,64 +120,56 @@ pipeline {
                 }
             }
 
-            stage('Aguardar API iniciar') {
-                when {
-                    expression {
-                        def gitBranch = (env.GIT_BRANCH ?: '').toLowerCase()
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh '''
+                            echo "Aguardando a API iniciar..."
 
-                        return gitBranch == 'origin/main' ||
-                               gitBranch == 'origin/master'
-                    }
-                }
+                            for i in $(seq 1 12); do
+                                echo "Tentativa $i de 12..."
 
-                steps {
-                    script {
-                        if (isUnix()) {
-                            sh '''
-                                echo "Aguardando API..."
+                                if curl --silent --fail "$API_URL_UNIX" > /dev/null; then
+                                    echo "API disponível."
+                                    exit 0
+                                fi
 
-                                for i in $(seq 1 12); do
-                                    echo "Tentativa $i de 12..."
+                                echo "API ainda não está disponível."
 
-                                    if curl --silent --fail "$API_URL_UNIX" > /dev/null; then
-                                        echo "API disponível."
-                                        exit 0
-                                    fi
+                                sleep 5
+                            done
 
-                                    echo "API ainda não está disponível."
-                                    sleep 5
-                                done
+                            echo "ERRO: A API não iniciou dentro do tempo esperado."
+                            exit 1
+                        '''
+                    } else {
+                        bat '''
+                            @echo off
 
-                                echo "ERRO: API não iniciou dentro do tempo esperado."
-                                exit 1
-                            '''
-                        } else {
-                            bat '''
-                                @echo off
+                            echo Aguardando a API iniciar...
 
-                                echo Aguardando API...
+                            for /L %%i in (1,1,12) do (
+                                echo Tentativa %%i de 12...
 
-                                for /L %%i in (1,1,12) do (
-                                    echo Tentativa %%i de 12...
+                                curl.exe --silent --fail "%API_URL_WINDOWS%" >nul 2>&1
 
-                                    curl.exe --silent --fail "%API_URL_WINDOWS%" >nul 2>&1
-
-                                    if not errorlevel 1 (
-                                        echo API disponivel.
-                                        exit /b 0
-                                    )
-
-                                    echo API ainda nao esta disponivel.
-                                    powershell.exe -NoProfile -Command "Start-Sleep -Seconds 5"
+                                if not errorlevel 1 (
+                                    echo API disponivel.
+                                    exit /b 0
                                 )
 
-                                echo ERRO: API nao iniciou dentro do tempo esperado.
-                                exit /b 1
-                            '''
-                        }
+                                echo API ainda nao esta disponivel.
+
+                                powershell.exe -NoProfile -Command "Start-Sleep -Seconds 5"
+                            )
+
+                            echo ERRO: A API nao iniciou dentro do tempo esperado.
+                            exit /b 1
+                        '''
                     }
                 }
             }
+        }
 
         stage('Executar pipeline de testes') {
             when {
@@ -176,7 +183,7 @@ pipeline {
 
             steps {
                 script {
-                    echo 'Disparando pipeline testeCriandoAPI...'
+                    echo 'Disparando a pipeline testeCriandoAPI...'
 
                     def resultadoTestes = build(
                         job: 'testeCriandoAPI',
@@ -187,14 +194,14 @@ pipeline {
                     echo "Resultado da pipeline de testes: ${resultadoTestes.result}"
                     echo "Execução: ${resultadoTestes.fullDisplayName}"
 
-                    if (resultadoTestes.result != 'SUCCESS') {
+                    if (resultadoTestes.result == 'SUCCESS') {
+                        echo 'Todos os testes automatizados foram aprovados.'
+                    } else {
                         error(
-                            "A API foi publicada, mas a pipeline de testes terminou com status: " +
-                            "${resultadoTestes.result}"
+                            "A API foi publicada, mas a pipeline de testes " +
+                            "terminou com status: ${resultadoTestes.result}"
                         )
                     }
-
-                    echo 'Todos os testes automatizados foram aprovados.'
                 }
             }
         }
@@ -211,6 +218,14 @@ pipeline {
 
         failure {
             echo 'Falha detectada no build, deploy ou nos testes automatizados.'
+        }
+
+        unstable {
+            echo 'A pipeline foi concluída com status instável.'
+        }
+
+        aborted {
+            echo 'A pipeline foi cancelada.'
         }
     }
 }
