@@ -152,24 +152,42 @@ pipeline {
         }
     }
 
-    post {
+post {
 
-        success {
+    always {
+        echo 'Pipeline da API concluída.'
+    }
 
+    success {
+        script {
             echo 'Build e Deploy executados com sucesso!'
             echo 'Disparando pipeline de testes...'
 
-            build job: 'testeCriandoAPI',
-                  wait: true,
-                  propagate: true
-        }
+            def resultadoTestes = build(
+                job: 'testeCriandoAPI',
+                wait: true,
+                propagate: false
+            )
 
-        failure {
-            echo 'Falha detectada no pipeline.'
-        }
+            echo "Resultado da pipeline de testes: ${resultadoTestes.result}"
+            echo "Execução dos testes: ${resultadoTestes.fullDisplayName}"
 
-        always {
-            echo 'Pipeline concluída.'
+            if (resultadoTestes.result == 'SUCCESS') {
+                echo 'API publicada e testes automatizados aprovados!'
+            } else {
+                error("""
+                    A API foi publicada, mas os testes automatizados falharam.
+
+                    Pipeline: ${resultadoTestes.fullDisplayName}
+                    Resultado: ${resultadoTestes.result}
+
+                    Consulte o Console Output da pipeline testeCriandoAPI.
+                """)
+            }
         }
+    }
+
+    failure {
+        echo 'Falha durante o build, deploy ou execução dos testes.'
     }
 }
