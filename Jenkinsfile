@@ -4,6 +4,9 @@ pipeline {
     environment {
         TOMCAT_WEBAPPS_WINDOWS = 'C:\\apache-tomcat-11.0.11\\webapps'
         TOMCAT_WEBAPPS_UNIX    = '/opt/homebrew/opt/tomcat/libexec/webapps'
+
+        API_URL_WINDOWS = 'http://localhost:9999/criandoAPI/v1/actuator/health'
+        API_URL_UNIX    = 'http://localhost:8080/criandoAPI/v1/actuator/health'
     }
 
     stages {
@@ -94,20 +97,79 @@ pipeline {
                 }
             }
         }
+
+        stage('Aguardar API iniciar') {
+            steps {
+                script {
+
+                    if (isUnix()) {
+
+                        sh '''
+                            echo "Aguardando API..."
+
+                            for i in {1..12}; do
+
+                                if curl --silent --fail "$API_URL_UNIX" >/dev/null; then
+                                    echo "API disponível."
+                                    exit 0
+                                fi
+
+                                echo "Tentativa $i de 12..."
+                                sleep 5
+
+                            done
+
+                            echo "API não iniciou."
+                            exit 1
+                        '''
+
+                    } else {
+
+                        bat '''
+                            @echo off
+
+                            echo Aguardando API...
+
+                            for /L %%i in (1,1,12) do (
+
+                                curl --silent --fail %API_URL_WINDOWS% >nul
+
+                                if not errorlevel 1 (
+                                    echo API disponível.
+                                    exit /b 0
+                                )
+
+                                echo Tentativa %%i de 12...
+                                timeout /t 5 /nobreak >nul
+                            )
+
+                            echo API não iniciou.
+                            exit /b 1
+                        '''
+                    }
+                }
+            }
+        }
     }
 
     post {
 
-        always {
-            echo 'Pipeline concluído.'
-        }
-
         success {
+
             echo 'Build e Deploy executados com sucesso!'
+            echo 'Disparando pipeline de testes...'
+
+            build job: 'testeCriandoAPI',
+                  wait: true,
+                  propagate: true
         }
 
         failure {
             echo 'Falha detectada no pipeline.'
+        }
+
+        always {
+            echo 'Pipeline concluída.'
         }
     }
 }
