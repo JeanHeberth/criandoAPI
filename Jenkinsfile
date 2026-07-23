@@ -105,52 +105,64 @@ pipeline {
                 }
             }
 
-            steps {
-                script {
-                    if (isUnix()) {
-                        sh '''
-                            echo "Aguardando API..."
+            stage('Aguardar API iniciar') {
+                when {
+                    expression {
+                        def gitBranch = (env.GIT_BRANCH ?: '').toLowerCase()
 
-                            for i in $(seq 1 12); do
-                                echo "Tentativa $i de 12..."
+                        return gitBranch == 'origin/main' ||
+                               gitBranch == 'origin/master'
+                    }
+                }
 
-                                if curl --silent --fail "$API_URL_UNIX" > /dev/null; then
-                                    echo "API disponível."
-                                    exit 0
-                                fi
+                steps {
+                    script {
+                        if (isUnix()) {
+                            sh '''
+                                echo "Aguardando API..."
 
-                                sleep 5
-                            done
+                                for i in $(seq 1 12); do
+                                    echo "Tentativa $i de 12..."
 
-                            echo "ERRO: API não iniciou dentro do tempo esperado."
-                            exit 1
-                        '''
-                    } else {
-                        bat '''
-                            @echo off
+                                    if curl --silent --fail "$API_URL_UNIX" > /dev/null; then
+                                        echo "API disponível."
+                                        exit 0
+                                    fi
 
-                            echo Aguardando API...
+                                    echo "API ainda não está disponível."
+                                    sleep 5
+                                done
 
-                            for /L %%i in (1,1,12) do (
-                                echo Tentativa %%i de 12...
+                                echo "ERRO: API não iniciou dentro do tempo esperado."
+                                exit 1
+                            '''
+                        } else {
+                            bat '''
+                                @echo off
 
-                                curl --silent --fail "%API_URL_WINDOWS%" >nul 2>&1
+                                echo Aguardando API...
 
-                                if not errorlevel 1 (
-                                    echo API disponivel.
-                                    exit /b 0
+                                for /L %%i in (1,1,12) do (
+                                    echo Tentativa %%i de 12...
+
+                                    curl.exe --silent --fail "%API_URL_WINDOWS%" >nul 2>&1
+
+                                    if not errorlevel 1 (
+                                        echo API disponivel.
+                                        exit /b 0
+                                    )
+
+                                    echo API ainda nao esta disponivel.
+                                    powershell.exe -NoProfile -Command "Start-Sleep -Seconds 5"
                                 )
 
-                                timeout /t 5 /nobreak >nul
-                            )
-
-                            echo ERRO: API nao iniciou dentro do tempo esperado.
-                            exit /b 1
-                        '''
+                                echo ERRO: API nao iniciou dentro do tempo esperado.
+                                exit /b 1
+                            '''
+                        }
                     }
                 }
             }
-        }
 
         stage('Executar pipeline de testes') {
             when {
