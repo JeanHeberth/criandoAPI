@@ -61,8 +61,8 @@ public class Produto {
         this.atualizadoEm = LocalDateTime.now();
     }
 
-    public void atualizarEstoque(Integer quantidade) {
-        this.estoque = quantidade;
+    public void atualizarEstoque(Integer estoque) {
+        this.estoque = estoque;
         this.atualizadoEm = LocalDateTime.now();
     }
 }

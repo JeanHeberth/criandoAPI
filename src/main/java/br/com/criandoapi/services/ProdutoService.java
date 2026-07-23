@@ -61,7 +61,7 @@ public class ProdutoService {
 
     public ProdutoResponse atualizarEstoque(Long id, EstoqueRequest request) {
         Produto produto = buscarOuErro(id);
-        produto.atualizarEstoque(request.quantidade());
+        produto.atualizarEstoque(request.estoque());
         return toResponse(produtoRepository.save(produto));
     }
 

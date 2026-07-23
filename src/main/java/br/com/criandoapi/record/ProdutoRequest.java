@@ -14,6 +14,7 @@ public record ProdutoRequest(
         String nome,
 
         @Schema(description = "Descrição detalhada do produto (até 500 caracteres)", example = "Notebook com processador Intel i7, 16GB RAM, SSD 512GB")
+        @NotBlank(message = "Descrição é obrigatória")
         @Size(max = 500, message = "Descrição deve ter no máximo 500 caracteres")
         String descricao,
 
