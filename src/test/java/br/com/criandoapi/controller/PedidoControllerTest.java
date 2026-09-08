@@ -49,6 +49,7 @@ class PedidoControllerTest {
         validator.afterPropertiesSet();
 
         mockMvc = MockMvcBuilders.standaloneSetup(pedidoController)
+                .addPlaceholderValue("api.version-prefix", "")
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
