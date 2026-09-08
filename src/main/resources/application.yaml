@@ -27,7 +27,7 @@ spring:
         one-indexed-parameters: false
 
 server:
-  port: ${SERVER_PORT:8089}
+  port: ${SERVER_PORT:8087}
   servlet:
     context-path: ${SERVER_SERVLET_CONTEXT_PATH:/criandoAPI}
 
