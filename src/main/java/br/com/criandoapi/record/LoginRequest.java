@@ -9,7 +9,7 @@ public record LoginRequest(
 
         @Schema(description = "E-mail cadastrado do usuário", example = "joao@email.com", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "E-mail é obrigatório")
-        @Email(message = "E-mail deve ter formato válido")
+        @Email(message = "E-mail deve ser um endereço de e-mail válido")
         String email,
 
         @Schema(description = "Senha do usuário (mínimo 6 caracteres)", example = "senha123", requiredMode = Schema.RequiredMode.REQUIRED)
