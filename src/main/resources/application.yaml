@@ -34,6 +34,19 @@ server:
 api:
   version-prefix: ${API_VERSION_PREFIX:/v1}
 
+management:
+  endpoints:
+    web:
+      base-path: ${api.version-prefix}/actuator
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    db:
+      enabled: true
+
 logging:
   level:
     org.hibernate.SQL: DEBUG
@@ -44,3 +57,4 @@ springdoc:
     path: ${api.version-prefix:/v1}/swagger-ui.html
   api-docs:
     path: ${api.version-prefix:/v1}/api-docs
+  show-actuator: true
