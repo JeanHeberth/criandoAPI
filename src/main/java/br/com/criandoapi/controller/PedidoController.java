@@ -43,7 +43,8 @@ public class PedidoController {
             @ApiResponse(responseCode = "400", description = "400 Bad Request - Dados invalidos"),
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
             @ApiResponse(responseCode = "404", description = "404 Not Found - Produto nao encontrado"),
-            @ApiResponse(responseCode = "422", description = "422 Unprocessable Entity - Regra de negocio violada")
+            @ApiResponse(responseCode = "422", description = "422 Unprocessable Entity - Regra de negocio violada"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<PedidoResponse> criar(
             @Valid @RequestBody PedidoRequest request,
@@ -59,7 +60,8 @@ public class PedidoController {
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "200 OK - Lista paginada"),
-            @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido")
+            @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<Page<PedidoResponse>> listar(
             @Parameter(description = "Filtro por status", example = "PENDENTE")
@@ -94,7 +96,8 @@ public class PedidoController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "200 OK - Pedido encontrado"),
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
-            @ApiResponse(responseCode = "404", description = "404 Not Found - Pedido nao encontrado")
+            @ApiResponse(responseCode = "404", description = "404 Not Found - Pedido nao encontrado"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<PedidoResponse> buscarPorId(
             @Parameter(description = "ID do pedido", example = "1", required = true)
@@ -114,7 +117,8 @@ public class PedidoController {
             @ApiResponse(responseCode = "400", description = "400 Bad Request - Status invalido/ausente"),
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
             @ApiResponse(responseCode = "404", description = "404 Not Found - Pedido nao encontrado"),
-            @ApiResponse(responseCode = "422", description = "422 Unprocessable Entity - Transicao invalida")
+            @ApiResponse(responseCode = "422", description = "422 Unprocessable Entity - Transicao invalida"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<PedidoResponse> transicionarStatus(
             @Parameter(description = "ID do pedido", example = "1", required = true)
@@ -134,7 +138,8 @@ public class PedidoController {
             @ApiResponse(responseCode = "204", description = "204 No Content - Pedido cancelado"),
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
             @ApiResponse(responseCode = "404", description = "404 Not Found - Pedido nao encontrado"),
-            @ApiResponse(responseCode = "422", description = "422 Unprocessable Entity - Status nao permite cancelamento")
+            @ApiResponse(responseCode = "422", description = "422 Unprocessable Entity - Status nao permite cancelamento"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<Void> cancelar(
             @Parameter(description = "ID do pedido", example = "1", required = true)

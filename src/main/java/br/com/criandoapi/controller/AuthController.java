@@ -32,7 +32,8 @@ public class AuthController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "200 OK - Login realizado com sucesso"),
             @ApiResponse(responseCode = "400", description = "400 Bad Request - Campos invalidos"),
-            @ApiResponse(responseCode = "401", description = "401 Unauthorized - Credenciais invalidas")
+            @ApiResponse(responseCode = "401", description = "401 Unauthorized - Credenciais invalidas"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
@@ -46,7 +47,8 @@ public class AuthController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "201 Created - Usuario registrado"),
             @ApiResponse(responseCode = "400", description = "400 Bad Request - Dados invalidos"),
-            @ApiResponse(responseCode = "409", description = "409 Conflict - Email ja cadastrado")
+            @ApiResponse(responseCode = "409", description = "409 Conflict - Email ja cadastrado"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<AuthResponse> registro(@Valid @RequestBody RegistroRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.registrar(request));

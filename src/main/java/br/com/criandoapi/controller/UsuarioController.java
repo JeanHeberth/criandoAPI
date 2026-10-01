@@ -35,7 +35,8 @@ public class UsuarioController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "201 Created - Usuario criado"),
             @ApiResponse(responseCode = "400", description = "400 Bad Request - Dados invalidos"),
-            @ApiResponse(responseCode = "409", description = "409 Conflict - Email ja cadastrado")
+            @ApiResponse(responseCode = "409", description = "409 Conflict - Email ja cadastrado"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<UsuarioResponse> criar(@Valid @RequestBody UsuarioRequest usuarioRequest) {
         return ResponseEntity.status(HttpStatus.CREATED).body(usuarioService.criarUsuario(usuarioRequest));
@@ -49,7 +50,8 @@ public class UsuarioController {
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "200 OK - Lista retornada"),
-            @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido")
+            @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<List<UsuarioResponse>> listar() {
         return ResponseEntity.ok(usuarioService.listarUsuarios());
@@ -64,7 +66,8 @@ public class UsuarioController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "200 OK - Usuario encontrado"),
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
-            @ApiResponse(responseCode = "404", description = "404 Not Found - Usuario nao encontrado")
+            @ApiResponse(responseCode = "404", description = "404 Not Found - Usuario nao encontrado"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<UsuarioResponse> buscarPorId(
             @Parameter(description = "ID do usuario", example = "1", required = true)
@@ -80,7 +83,8 @@ public class UsuarioController {
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "200 OK - Busca executada"),
-            @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido")
+            @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<List<UsuarioResponse>> buscarPorNome(
             @Parameter(description = "Nome ou parte do nome", example = "Joao", required = true)
@@ -99,7 +103,8 @@ public class UsuarioController {
             @ApiResponse(responseCode = "400", description = "400 Bad Request - Dados invalidos"),
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
             @ApiResponse(responseCode = "404", description = "404 Not Found - Usuario nao encontrado"),
-            @ApiResponse(responseCode = "409", description = "409 Conflict - Email ja cadastrado")
+            @ApiResponse(responseCode = "409", description = "409 Conflict - Email ja cadastrado"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<UsuarioResponse> atualizar(
             @Parameter(description = "ID do usuario", example = "1", required = true)
@@ -117,7 +122,8 @@ public class UsuarioController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "204 No Content - Usuario removido"),
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
-            @ApiResponse(responseCode = "404", description = "404 Not Found - Usuario nao encontrado")
+            @ApiResponse(responseCode = "404", description = "404 Not Found - Usuario nao encontrado"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<Void> deletar(
             @Parameter(description = "ID do usuario", example = "1", required = true)

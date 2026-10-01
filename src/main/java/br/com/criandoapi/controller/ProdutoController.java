@@ -34,13 +34,16 @@ public class ProdutoController {
     }
 
     @GetMapping
+    @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "Lista produtos",
-            description = "Endpoint publico com filtros e paginacao. Use sort no formato campo,direcao (ex.: nome,asc). CT base: sem filtro (200), com filtro (200), parametro invalido (400)."
+            description = "Endpoint protegido com JWT, com filtros e paginacao. Use sort no formato campo,direcao (ex.: nome,asc). CT base: sem filtro (200), com filtro (200), parametro invalido (400), sem token (401)."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "200 OK - Lista paginada"),
-            @ApiResponse(responseCode = "400", description = "400 Bad Request - Parametro invalido")
+            @ApiResponse(responseCode = "400", description = "400 Bad Request - Parametro invalido"),
+            @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<Page<ProdutoResponse>> listar(
             @Parameter(description = "Filtro por nome", example = "Notebook")
@@ -62,13 +65,16 @@ public class ProdutoController {
     }
 
     @GetMapping("/{id}")
+    @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "Busca produto por id",
-            description = "Endpoint publico. CT base: encontrado (200), nao encontrado (404)."
+            description = "Endpoint protegido com JWT. CT base: encontrado (200), nao encontrado (404), sem token (401)."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "200 OK - Produto encontrado"),
-            @ApiResponse(responseCode = "404", description = "404 Not Found - Produto nao encontrado")
+            @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
+            @ApiResponse(responseCode = "404", description = "404 Not Found - Produto nao encontrado"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<ProdutoResponse> buscarPorId(
             @Parameter(description = "ID do produto", example = "1", required = true)
@@ -77,13 +83,16 @@ public class ProdutoController {
     }
 
     @GetMapping("/categoria/{categoria}")
+    @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "Lista por categoria",
-            description = "Endpoint publico por categoria com paginacao. Use sort no formato campo,direcao (ex.: nome,asc). CT base: categoria valida (200), invalida (400)."
+            description = "Endpoint protegido com JWT, por categoria com paginacao. Use sort no formato campo,direcao (ex.: nome,asc). CT base: categoria valida (200), invalida (400), sem token (401)."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "200 OK - Lista paginada"),
-            @ApiResponse(responseCode = "400", description = "400 Bad Request - Categoria invalida")
+            @ApiResponse(responseCode = "400", description = "400 Bad Request - Categoria invalida"),
+            @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<Page<ProdutoResponse>> listarPorCategoria(
             @Parameter(description = "Categoria do produto", example = "ELETRONICO", required = true)
@@ -126,7 +135,8 @@ public class ProdutoController {
             @ApiResponse(responseCode = "201", description = "201 Created - Produto criado"),
             @ApiResponse(responseCode = "400", description = "400 Bad Request - Dados invalidos"),
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
-            @ApiResponse(responseCode = "409", description = "409 Conflict - Nome ja cadastrado")
+            @ApiResponse(responseCode = "409", description = "409 Conflict - Nome ja cadastrado"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<ProdutoResponse> criar(@Valid @RequestBody ProdutoRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(produtoService.criar(request));
@@ -143,7 +153,8 @@ public class ProdutoController {
             @ApiResponse(responseCode = "400", description = "400 Bad Request - Dados invalidos"),
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
             @ApiResponse(responseCode = "404", description = "404 Not Found - Produto nao encontrado"),
-            @ApiResponse(responseCode = "409", description = "409 Conflict - Nome ja cadastrado")
+            @ApiResponse(responseCode = "409", description = "409 Conflict - Nome ja cadastrado"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<ProdutoResponse> atualizar(
             @Parameter(description = "ID do produto", example = "1", required = true)
@@ -162,7 +173,8 @@ public class ProdutoController {
             @ApiResponse(responseCode = "200", description = "200 OK - Estoque atualizado"),
             @ApiResponse(responseCode = "400", description = "400 Bad Request - Quantidade invalida"),
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
-            @ApiResponse(responseCode = "404", description = "404 Not Found - Produto nao encontrado")
+            @ApiResponse(responseCode = "404", description = "404 Not Found - Produto nao encontrado"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<ProdutoResponse> atualizarEstoque(
             @Parameter(description = "ID do produto", example = "1", required = true)
@@ -180,7 +192,8 @@ public class ProdutoController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "204 No Content - Produto inativado"),
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
-            @ApiResponse(responseCode = "404", description = "404 Not Found - Produto nao encontrado")
+            @ApiResponse(responseCode = "404", description = "404 Not Found - Produto nao encontrado"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<Void> deletar(
             @Parameter(description = "ID do produto", example = "1", required = true)

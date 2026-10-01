@@ -32,7 +32,8 @@ public class ManutencaoController {
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "204 No Content - Banco limpo"),
-            @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido")
+            @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<Void> limparBanco() {
         manutencaoService.limparBanco();

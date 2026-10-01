@@ -36,7 +36,7 @@ public class OpenApiConfig {
 								API de estudo com modulos: Auth, Usuarios, Produtos, Pedidos e Health.
 								
 								Status code padrao documentados nos endpoints:
-								200, 201, 204, 400, 401, 404, 409, 422.
+								200, 201, 204, 400, 401, 404, 409, 422, 500.
 
 								Paginacao:
 								- page: numero da pagina (comeca em 0)
