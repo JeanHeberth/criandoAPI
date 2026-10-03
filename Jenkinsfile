@@ -3,10 +3,8 @@ pipeline {
 
     environment {
         API_HEALTH_URL = 'http://100.83.72.100:9999/criandoAPI/v1/actuator/health'
-
         TOMCAT_WINDOWS = 'C:\\apache-tomcat-11.0.11'
         TOMCAT_MAC     = '/opt/homebrew/opt/tomcat/libexec'
-
         WAR_NAME = 'criandoAPI.war'
     }
 
