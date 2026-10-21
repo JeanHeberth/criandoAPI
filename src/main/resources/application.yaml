@@ -38,6 +38,10 @@ server:
 
 api:
   version-prefix: ${API_VERSION_PREFIX:/v1}
+  admin:
+    email: ${API_ADMIN_EMAIL:}
+    senha: ${API_ADMIN_SENHA:}
+    nome: ${API_ADMIN_NOME:Administrador}
   manutencao:
     enabled: ${API_MANUTENCAO_ENABLED:false}
 

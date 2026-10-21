@@ -2,6 +2,7 @@ package br.com.criandoapi.services;
 
 import br.com.criandoapi.entity.Usuario;
 import br.com.criandoapi.exception.ConflictException;
+import br.com.criandoapi.entity.UsuarioRole;
 import br.com.criandoapi.record.UsuarioRequest;
 import br.com.criandoapi.record.UsuarioResponse;
 import br.com.criandoapi.repository.UsuarioRepository;
@@ -13,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
+import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
@@ -26,12 +28,16 @@ public class UsuarioService {
     }
 
     @Transactional
-    public UsuarioResponse criarUsuario(UsuarioRequest usuarioRequest) {
+    public UsuarioResponse criarUsuario(UsuarioRequest usuarioRequest, UsuarioAutenticado autenticado) {
+        UsuarioRole role = usuarioRequest.role() == null ? UsuarioRole.USER : usuarioRequest.role();
+        if (role == UsuarioRole.ADMIN && (autenticado == null || autenticado.role() != UsuarioRole.ADMIN)) {
+            throw new ResponseStatusException(FORBIDDEN, "Operacao restrita a administradores");
+        }
         // 409 - Conflito: e-mail já cadastrado
         if (usuarioRepository.findByEmail(usuarioRequest.email()).isPresent()) {
             throw new ConflictException("E-mail '" + usuarioRequest.email() + "' já está em uso");
         }
-        Usuario usuario = new Usuario(usuarioRequest.nome(), usuarioRequest.email(), PasswordUtils.hash(usuarioRequest.senha()));
+        Usuario usuario = new Usuario(usuarioRequest.nome(), usuarioRequest.email(), PasswordUtils.hash(usuarioRequest.senha()), role);
         Usuario usuarioSalvo = usuarioRepository.save(usuario);
         return toResponse(usuarioSalvo);
     }
@@ -82,6 +88,19 @@ public class UsuarioService {
     }
 
     @Transactional
+    public UsuarioResponse alterarRole(Long id, UsuarioRole novaRole, UsuarioAutenticado autenticado) {
+        autenticado.exigirAdministrador();
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Usuario nao encontrado com id: " + id));
+        if (usuario.getRole() == UsuarioRole.ADMIN && novaRole != UsuarioRole.ADMIN
+                && usuarioRepository.countByRole(UsuarioRole.ADMIN) <= 1) {
+            throw new ConflictException("Nao e possivel remover o ultimo administrador");
+        }
+        usuario.setRole(novaRole);
+        return toResponse(usuarioRepository.save(usuario));
+    }
+
+    @Transactional
     public void deletarUsuario(Long id, UsuarioAutenticado autenticado) {
         autenticado.exigirProprioUsuarioOuAdministrador(id);
         if (!usuarioRepository.existsById(id)) {
@@ -91,6 +110,6 @@ public class UsuarioService {
     }
 
     private UsuarioResponse toResponse(Usuario u) {
-        return new UsuarioResponse(u.getId(), u.getNome(), u.getEmail());
+        return new UsuarioResponse(u.getId(), u.getNome(), u.getEmail(), u.getRole());
     }
 }
