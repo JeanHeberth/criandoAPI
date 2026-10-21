@@ -32,7 +32,7 @@ A aplicação carrega opcionalmente um arquivo `.env` na raiz do projeto (`sprin
 | `DB_USERNAME` | `root` | Usuário do banco |
 | `DB_PASSWORD` | *(vazio)* | Senha do banco |
 | `FLYWAY_BASELINE_ON_MIGRATE` | `false` | Adoção explícita de banco existente compatível com V1 (primeira migração) |
-| `API_MANUTENCAO_ENABLED` | `false` | Habilita limpeza do banco, exclusiva para ADMIN e ambientes isolados |
+| `API_MANUTENCAO_ENABLED` | `false` | Habilita limpeza do banco, apenas para ambientes isolados |
 | `SERVER_PORT` | `8087` | Porta HTTP |
 | `SERVER_SERVLET_CONTEXT_PATH` | `/criandoAPI` | Context path da aplicação |
 | `API_VERSION_PREFIX` | `/v1` | Prefixo de versão usado em todas as rotas |
@@ -86,11 +86,11 @@ Todas as rotas abaixo são prefixadas por `{context-path}{api.version-prefix}` (
 | Método | Rota | Autenticação | Descrição |
 |---|---|---|---|
 | POST | `/usuarios` | Não | Cria usuário |
-| GET | `/usuarios` | ADMIN | Lista usuários |
-| GET | `/usuarios/{id}` | Próprio usuário ou ADMIN | Busca por id |
-| GET | `/usuarios/buscar?nome=` | ADMIN | Busca por nome (404 quando sem resultado) |
-| PUT | `/usuarios/{id}` | Próprio usuário ou ADMIN | Atualiza usuário |
-| DELETE | `/usuarios/{id}` | Próprio usuário ou ADMIN | Remove usuário (409 se houver vínculos) |
+| GET | `/usuarios` | JWT | Lista usuários |
+| GET | `/usuarios/{id}` | Próprio usuário | Busca por id |
+| GET | `/usuarios/buscar?nome=` | JWT | Busca por nome (404 quando sem resultado) |
+| PUT | `/usuarios/{id}` | Próprio usuário | Atualiza usuário |
+| DELETE | `/usuarios/{id}` | Próprio usuário | Remove usuário (409 se houver vínculos) |
 
 ### Produtos
 
@@ -99,10 +99,10 @@ Todas as rotas abaixo são prefixadas por `{context-path}{api.version-prefix}` (
 | GET | `/produtos` | JWT | Lista com filtros (`nome`, `categoria`, `precoMin`, `precoMax`) e paginação |
 | GET | `/produtos/{id}` | JWT | Busca por id |
 | GET | `/produtos/categoria/{categoria}` | JWT | Lista por categoria, paginado |
-| POST | `/produtos` | ADMIN | Cria produto |
-| PUT | `/produtos/{id}` | ADMIN | Atualiza produto |
-| PATCH | `/produtos/{id}/estoque` | ADMIN | Atualiza estoque |
-| DELETE | `/produtos/{id}` | ADMIN | Inativa produto (soft delete) |
+| POST | `/produtos` | JWT | Cria produto |
+| PUT | `/produtos/{id}` | JWT | Atualiza produto |
+| PATCH | `/produtos/{id}/estoque` | JWT | Atualiza estoque |
+| DELETE | `/produtos/{id}` | JWT | Inativa produto (soft delete) |
 
 Categorias (`ProdutoCategoria`): `ELETRONICO`, `VESTUARIO`, `ALIMENTACAO`, `LIVRO`, `ESPORTE`, `CASA_E_JARDIM`, `OUTRO`.
 
@@ -152,11 +152,9 @@ O bloqueio do usuário serializa criações daquele usuário, inclusive reenvios
 
 ## Permissões e manutenção
 
-Contas públicas são sempre criadas com perfil USER; o payload não permite atribuir ADMIN. Alterações de produtos, listagem/busca de usuários, métricas e limpeza do banco exigem ADMIN. Pedidos continuam isolados por proprietário. A identidade autenticada é consultada no banco a cada requisição, incluindo o perfil atual.
+Não há perfis de acesso: qualquer usuário autenticado acessa produtos, listagem/busca de usuários, métricas e (quando habilitada) a limpeza do banco. Cada usuário só consulta, altera e remove a própria conta por id, e os pedidos continuam isolados por proprietário.
 
-A criação do primeiro administrador é uma operação administrativa no banco, fora dos endpoints públicos: após cadastrar a conta, um responsável pode atribuir `role = 'ADMIN'` ao usuário escolhido. Não há promoção automática do primeiro usuário.
-
-`DELETE /manutencao/banco` só existe com `API_MANUTENCAO_ENABLED=true` e exige ADMIN. A configuração padrão mantém o endpoint ausente. A limpeza também remove usuários e pedidos com suas chaves de idempotência; use apenas em ambientes isolados de testes.
+`DELETE /manutencao/banco` só existe com `API_MANUTENCAO_ENABLED=true` e exige JWT. A configuração padrão mantém o endpoint ausente. A limpeza também remove usuários e pedidos com suas chaves de idempotência; use apenas em ambientes isolados de testes.
 
 ## Validação e erros
 
@@ -181,7 +179,7 @@ Referência: [baseline do Flyway](https://documentation.red-gate.com/flyway/refe
 
 ## Observabilidade e verificação
 
-Logs HTTP registram método, status, duração e identificador de requisição; não registram corpos, tokens ou parâmetros de query. Logs SQL e bind de parâmetros estão desativados por padrão. Health público não expõe detalhes internos. `/v1/actuator/metrics` exige ADMIN e oferece métricas do servidor HTTP, JVM e pool de conexões; o prefixo acompanha `API_VERSION_PREFIX`.
+Logs HTTP registram método, status, duração e identificador de requisição; não registram corpos, tokens ou parâmetros de query. Logs SQL e bind de parâmetros estão desativados por padrão. Health público não expõe detalhes internos. `/v1/actuator/metrics` exige JWT e oferece métricas do servidor HTTP, JVM e pool de conexões; o prefixo acompanha `API_VERSION_PREFIX`.
 
 `./gradlew test` executa integração com contexto Spring, filtros JWT, migrations e banco H2 em modo MySQL, incluindo concorrência, rollback, idempotência, permissões e contratos HTTP. `./gradlew mysqlTest` valida os mesmos cenários em um MySQL descartável, sem acessar o banco da aplicação; falha se Docker não estiver disponível. H2 não substitui a validação das características específicas do MySQL. As configurações de testes não importam `.env` e usam bancos isolados.
 

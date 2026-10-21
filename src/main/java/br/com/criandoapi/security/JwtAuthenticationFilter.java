@@ -40,6 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = path(request);
         return path.equals("/auth/login") || path.equals("/auth/registro")
+                || (path.equals("/usuarios") && request.getMethod().equals("POST"))
                 || path.equals("/actuator/health") || path.startsWith("/actuator/health/")
                 || path.equals("/swagger-ui.html") || path.startsWith("/swagger-ui/")
                 || path.equals("/api-docs") || path.startsWith("/api-docs/")
@@ -51,11 +52,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
-        // Criacao de usuario e publica; o token e opcional e so e necessario para definir role ADMIN.
-        if (header == null && path(request).equals("/usuarios") && request.getMethod().equals("POST")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
         if (header == null || !header.startsWith("Bearer ") || header.length() == 7) {
             erro(request, response, 401, "Token ausente");
             return;
@@ -78,15 +74,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         UsuarioAutenticado autenticado = UsuarioAutenticado.of(usuario);
-        String path = path(request);
-        boolean produto = path.equals("/produtos") || path.startsWith("/produtos/");
-        boolean manutencao = path.equals("/manutencao") || path.startsWith("/manutencao/");
-        boolean metricas = path.equals("/actuator/metrics") || path.startsWith("/actuator/metrics/");
-        if (((produto && !request.getMethod().equals("GET")) || manutencao || metricas)
-                && autenticado.role() != br.com.criandoapi.entity.UsuarioRole.ADMIN) {
-            erro(request, response, 403, "Operacao restrita a administradores");
-            return;
-        }
         request.setAttribute("usuarioAutenticado", autenticado);
         // Downstream errors must retain their original status, never become invalid-token errors.
         filterChain.doFilter(request, response);

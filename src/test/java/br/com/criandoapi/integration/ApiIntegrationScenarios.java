@@ -40,10 +40,8 @@ abstract class ApiIntegrationScenarios {
     @Autowired Flyway flyway;
     Usuario usuario;
     Usuario outro;
-    Usuario admin;
     Produto produto;
     String token;
-    String tokenAdmin;
 
     @BeforeEach
     void prepararBancoIsolado() {
@@ -52,12 +50,8 @@ abstract class ApiIntegrationScenarios {
         usuarios.deleteAll();
         usuario = usuarios.save(new Usuario("Usuario Teste", "user@teste.com", PasswordUtils.hash("senha123")));
         outro = usuarios.save(new Usuario("Outro Usuario", "outro@teste.com", PasswordUtils.hash("senha123")));
-        admin = new Usuario("Administrador", "admin@teste.com", PasswordUtils.hash("senha123"));
-        admin.setRole(UsuarioRole.ADMIN);
-        admin = usuarios.save(admin);
         produto = produtos.save(new Produto("Notebook", "Computador", new BigDecimal("10.25"), 10, ProdutoCategoria.ELETRONICO));
         token = jwt.generateToken(usuario.getEmail());
-        tokenAdmin = jwt.generateToken(admin.getEmail());
     }
 
     private String body(int quantidade) {
@@ -203,16 +197,16 @@ abstract class ApiIntegrationScenarios {
     }
 
     @Test
-    void permissoesProtegemProdutosEUsuarios() throws Exception {
+    void qualquerUsuarioAutenticadoGerenciaProdutosEListaUsuarios() throws Exception {
+        mvc.perform(patch(PREFIX + "/produtos/" + produto.getId() + "/estoque")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"estoque\":100}"))
+                .andExpect(status().isUnauthorized());
         mvc.perform(patch(PREFIX + "/produtos/" + produto.getId() + "/estoque").header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON).content("{\"estoque\":100}"))
-                .andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("ACESSO_NEGADO"));
-        mvc.perform(patch(PREFIX + "/produtos/" + produto.getId() + "/estoque").header("Authorization", "Bearer " + tokenAdmin)
-                .contentType(MediaType.APPLICATION_JSON).content("{\"estoque\":100}"))
                 .andExpect(status().isOk());
-        mvc.perform(get(PREFIX + "/usuarios").header("Authorization", "Bearer " + token)).andExpect(status().isForbidden());
-        mvc.perform(get(PREFIX + "/usuarios").header("Authorization", "Bearer " + tokenAdmin)).andExpect(status().isOk());
-        mvc.perform(get(PREFIX + "/usuarios/" + outro.getId()).header("Authorization", "Bearer " + token)).andExpect(status().isForbidden());
+        mvc.perform(get(PREFIX + "/usuarios").header("Authorization", "Bearer " + token)).andExpect(status().isOk());
+        mvc.perform(get(PREFIX + "/usuarios/" + outro.getId()).header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("ACESSO_NEGADO"));
         mvc.perform(get(PREFIX + "/usuarios/" + usuario.getId()).header("Authorization", "Bearer " + token)).andExpect(status().isOk());
         mvc.perform(delete(PREFIX + "/usuarios/" + outro.getId()).header("Authorization", "Bearer " + token)).andExpect(status().isForbidden());
     }
@@ -248,9 +242,8 @@ abstract class ApiIntegrationScenarios {
     @Test
     void registroLoginEValidacaoFuncionamComPrefixoConfigurado() throws Exception {
         mvc.perform(post(PREFIX + "/auth/registro").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"nome\":\"Novo Usuario\",\"email\":\"novo@teste.com\",\"senha\":\"senha123\",\"role\":\"ADMIN\"}"))
+                .content("{\"nome\":\"Novo Usuario\",\"email\":\"novo@teste.com\",\"senha\":\"senha123\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.token").isNotEmpty());
-        assertEquals(UsuarioRole.USER, usuarios.findByEmail("novo@teste.com").orElseThrow().getRole());
         mvc.perform(post(PREFIX + "/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"novo@teste.com\",\"senha\":\"senha123\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.token").isNotEmpty());
@@ -264,10 +257,10 @@ abstract class ApiIntegrationScenarios {
 
     @Test
     void migrationsExecutadasEManutencaoDesabilitada() throws Exception {
-        assertEquals(3, flyway.info().applied().length);
-        mvc.perform(delete(PREFIX + "/manutencao/banco").header("Authorization", "Bearer " + tokenAdmin))
+        assertEquals(4, flyway.info().applied().length);
+        mvc.perform(delete(PREFIX + "/manutencao/banco").header("Authorization", "Bearer " + token))
                 .andExpect(status().isNotFound());
-        assertEquals(3, usuarios.count());
+        assertEquals(2, usuarios.count());
     }
 
     @Test
@@ -331,7 +324,7 @@ abstract class ApiIntegrationScenarios {
 
     @Test
     void precisaoMonetariaEhValidadaAntesDePersistir() throws Exception {
-        mvc.perform(post(PREFIX + "/produtos").header("Authorization", "Bearer " + tokenAdmin)
+        mvc.perform(post(PREFIX + "/produtos").header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"nome\":\"Novo Produto\",\"descricao\":\"Descricao\",\"preco\":1.234,\"estoque\":10,\"categoria\":\"ELETRONICO\"}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.campos[0].campo").value("preco"));
@@ -339,61 +332,9 @@ abstract class ApiIntegrationScenarios {
     }
 
     @Test
-    void metricasExigemAdministrador() throws Exception {
+    void metricasExigemAutenticacao() throws Exception {
+        mvc.perform(get(PREFIX + "/actuator/metrics")).andExpect(status().isUnauthorized());
         mvc.perform(get(PREFIX + "/actuator/metrics").header("Authorization", "Bearer " + token))
-                .andExpect(status().isForbidden());
-        mvc.perform(get(PREFIX + "/actuator/metrics").header("Authorization", "Bearer " + tokenAdmin))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.names").isArray());
-    }
-
-    private String novoUsuario(String email, String role) {
-        return "{\"nome\":\"Novo Usuario\",\"email\":\"" + email + "\",\"senha\":\"senha123\""
-                + (role == null ? "" : ",\"role\":\"" + role + "\"") + "}";
-    }
-
-    @Test
-    void criacaoPublicaAssumeUserEBloqueiaAdminSemToken() throws Exception {
-        mvc.perform(post(PREFIX + "/usuarios").contentType(MediaType.APPLICATION_JSON).content(novoUsuario("a@teste.com", null)))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.role").value("USER"));
-        mvc.perform(post(PREFIX + "/usuarios").contentType(MediaType.APPLICATION_JSON).content(novoUsuario("b@teste.com", "ADMIN")))
-                .andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("ACESSO_NEGADO"));
-        mvc.perform(post(PREFIX + "/usuarios").header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON).content(novoUsuario("c@teste.com", "ADMIN")))
-                .andExpect(status().isForbidden());
-        assertTrue(usuarios.findByEmail("b@teste.com").isEmpty());
-    }
-
-    @Test
-    void adminPodeCriarUsuarioComRoleAdmin() throws Exception {
-        mvc.perform(post(PREFIX + "/usuarios").header("Authorization", "Bearer " + tokenAdmin)
-                .contentType(MediaType.APPLICATION_JSON).content(novoUsuario("d@teste.com", "ADMIN")))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.role").value("ADMIN"));
-        assertEquals(UsuarioRole.ADMIN, usuarios.findByEmail("d@teste.com").orElseThrow().getRole());
-    }
-
-    @Test
-    void alteracaoDeRoleExigeAdminEProtegeUltimoAdmin() throws Exception {
-        String url = PREFIX + "/usuarios/" + usuario.getId() + "/role";
-        mvc.perform(patch(url).contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"ADMIN\"}"))
-                .andExpect(status().isUnauthorized());
-        mvc.perform(patch(url).header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"ADMIN\"}"))
-                .andExpect(status().isForbidden());
-        mvc.perform(patch(url).header("Authorization", "Bearer " + tokenAdmin)
-                .contentType(MediaType.APPLICATION_JSON).content("{}"))
-                .andExpect(status().isBadRequest());
-        mvc.perform(patch(url).header("Authorization", "Bearer " + tokenAdmin)
-                .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"ADMIN\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.role").value("ADMIN"));
-        mvc.perform(patch(PREFIX + "/usuarios/999999/role").header("Authorization", "Bearer " + tokenAdmin)
-                .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"USER\"}"))
-                .andExpect(status().isNotFound());
-        // dois admins: rebaixar um e permitido; rebaixar o ultimo nao
-        mvc.perform(patch(url).header("Authorization", "Bearer " + tokenAdmin)
-                .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"USER\"}"))
-                .andExpect(status().isOk());
-        mvc.perform(patch(PREFIX + "/usuarios/" + admin.getId() + "/role").header("Authorization", "Bearer " + tokenAdmin)
-                .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"USER\"}"))
-                .andExpect(status().isConflict());
     }
 }

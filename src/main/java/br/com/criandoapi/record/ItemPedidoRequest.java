@@ -3,12 +3,13 @@ package br.com.criandoapi.record;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 @Schema(description = "Item de um pedido com produto e quantidade")
 public record ItemPedidoRequest(
         @Schema(description = "ID do produto a ser incluído no pedido (deve existir e estar ativo)", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotNull(message = "ID do produto é obrigatório")
-        @jakarta.validation.constraints.Positive(message = "ID do produto deve ser positivo")
+        @Positive(message = "ID do produto deve ser positivo")
         Long produtoId,
 
         @Schema(description = "Quantidade desejada do produto (mínimo 1, não pode exceder o estoque disponível)", example = "2", requiredMode = Schema.RequiredMode.REQUIRED)

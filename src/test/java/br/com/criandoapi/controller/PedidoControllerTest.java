@@ -1,7 +1,6 @@
 package br.com.criandoapi.controller;
 
 import br.com.criandoapi.entity.PedidoStatus;
-import br.com.criandoapi.entity.UsuarioRole;
 import br.com.criandoapi.security.UsuarioAutenticado;
 import br.com.criandoapi.exception.GlobalExceptionHandler;
 import br.com.criandoapi.exception.NegocioException;
@@ -89,7 +88,7 @@ class PedidoControllerTest {
                 """;
 
         mockMvc.perform(post("/pedidos")
-                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com", UsuarioRole.USER))
+                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -113,7 +112,7 @@ class PedidoControllerTest {
                 """;
 
         mockMvc.perform(post("/pedidos")
-                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com", UsuarioRole.USER))
+                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isNotFound())
@@ -135,7 +134,7 @@ class PedidoControllerTest {
                 """;
 
         mockMvc.perform(post("/pedidos")
-                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com", UsuarioRole.USER))
+                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().is(422))
@@ -152,7 +151,7 @@ class PedidoControllerTest {
                 """;
 
         mockMvc.perform(post("/pedidos")
-                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com", UsuarioRole.USER))
+                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -193,7 +192,7 @@ class PedidoControllerTest {
                 """;
 
         mockMvc.perform(post("/pedidos")
-                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com", UsuarioRole.USER))
+                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())

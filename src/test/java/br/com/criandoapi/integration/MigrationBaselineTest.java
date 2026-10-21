@@ -20,7 +20,7 @@ class MigrationBaselineTest {
 
         Flyway flyway = Flyway.configure().dataSource(banco).baselineOnMigrate(true)
                 .baselineVersion("1").locations("classpath:db/migration").load();
-        assertEquals(2, flyway.migrate().migrationsExecuted);
+        assertEquals(3, flyway.migrate().migrationsExecuted);
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM usuarios WHERE email='legado@teste.com'", Integer.class));
         jdbc.queryForList("SELECT idempotency_key, idempotency_key_hash, request_hash FROM pedidos");
         assertEquals(0, flyway.migrate().migrationsExecuted);
