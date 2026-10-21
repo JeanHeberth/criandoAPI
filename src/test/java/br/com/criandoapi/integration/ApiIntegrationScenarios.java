@@ -345,4 +345,55 @@ abstract class ApiIntegrationScenarios {
         mvc.perform(get(PREFIX + "/actuator/metrics").header("Authorization", "Bearer " + tokenAdmin))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.names").isArray());
     }
+
+    private String novoUsuario(String email, String role) {
+        return "{\"nome\":\"Novo Usuario\",\"email\":\"" + email + "\",\"senha\":\"senha123\""
+                + (role == null ? "" : ",\"role\":\"" + role + "\"") + "}";
+    }
+
+    @Test
+    void criacaoPublicaAssumeUserEBloqueiaAdminSemToken() throws Exception {
+        mvc.perform(post(PREFIX + "/usuarios").contentType(MediaType.APPLICATION_JSON).content(novoUsuario("a@teste.com", null)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.role").value("USER"));
+        mvc.perform(post(PREFIX + "/usuarios").contentType(MediaType.APPLICATION_JSON).content(novoUsuario("b@teste.com", "ADMIN")))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("ACESSO_NEGADO"));
+        mvc.perform(post(PREFIX + "/usuarios").header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(novoUsuario("c@teste.com", "ADMIN")))
+                .andExpect(status().isForbidden());
+        assertTrue(usuarios.findByEmail("b@teste.com").isEmpty());
+    }
+
+    @Test
+    void adminPodeCriarUsuarioComRoleAdmin() throws Exception {
+        mvc.perform(post(PREFIX + "/usuarios").header("Authorization", "Bearer " + tokenAdmin)
+                .contentType(MediaType.APPLICATION_JSON).content(novoUsuario("d@teste.com", "ADMIN")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.role").value("ADMIN"));
+        assertEquals(UsuarioRole.ADMIN, usuarios.findByEmail("d@teste.com").orElseThrow().getRole());
+    }
+
+    @Test
+    void alteracaoDeRoleExigeAdminEProtegeUltimoAdmin() throws Exception {
+        String url = PREFIX + "/usuarios/" + usuario.getId() + "/role";
+        mvc.perform(patch(url).contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"ADMIN\"}"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(patch(url).header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"ADMIN\"}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(patch(url).header("Authorization", "Bearer " + tokenAdmin)
+                .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(patch(url).header("Authorization", "Bearer " + tokenAdmin)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"ADMIN\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.role").value("ADMIN"));
+        mvc.perform(patch(PREFIX + "/usuarios/999999/role").header("Authorization", "Bearer " + tokenAdmin)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"USER\"}"))
+                .andExpect(status().isNotFound());
+        // dois admins: rebaixar um e permitido; rebaixar o ultimo nao
+        mvc.perform(patch(url).header("Authorization", "Bearer " + tokenAdmin)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"USER\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(patch(PREFIX + "/usuarios/" + admin.getId() + "/role").header("Authorization", "Bearer " + tokenAdmin)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"USER\"}"))
+                .andExpect(status().isConflict());
+    }
 }

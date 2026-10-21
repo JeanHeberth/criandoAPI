@@ -44,6 +44,11 @@ public class Usuario {
     }
 
 
+    public Usuario(String nome, String email, String senha, UsuarioRole role) {
+        this(nome, email, senha);
+        this.role = role;
+    }
+
     public void atualizar(String nome, String email, String senha) {
         this.nome = nome;
         this.email = email;
