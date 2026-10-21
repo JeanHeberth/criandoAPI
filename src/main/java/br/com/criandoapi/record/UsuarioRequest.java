@@ -1,6 +1,7 @@
 package br.com.criandoapi.record;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import br.com.criandoapi.entity.UsuarioRole;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -20,6 +21,12 @@ public record UsuarioRequest(
         @Schema(description = "Senha de acesso (mínimo 6 caracteres)", example = "senha123", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank(message = "Senha é obrigatória")
         @Size(min = 6, message = "Senha deve ter no mínimo 6 caracteres")
-        String senha
+        String senha,
+
+        @Schema(description = "Perfil do usuário (USER ou ADMIN). Opcional, padrão USER. Definir ADMIN exige token de administrador; ignorado na atualização (PUT)", example = "USER", allowableValues = {"USER", "ADMIN"})
+        UsuarioRole role
 ) {
+    public UsuarioRequest(String nome, String email, String senha) {
+        this(nome, email, senha, null);
+    }
 }

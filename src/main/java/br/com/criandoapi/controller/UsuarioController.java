@@ -1,5 +1,6 @@
 package br.com.criandoapi.controller;
 
+import br.com.criandoapi.record.RoleRequest;
 import br.com.criandoapi.record.UsuarioRequest;
 import br.com.criandoapi.record.UsuarioResponse;
 import br.com.criandoapi.services.UsuarioService;
@@ -31,7 +32,7 @@ public class UsuarioController {
     @PostMapping
     @Operation(
             summary = "Cria usuario",
-            description = "Cria usuario sem autenticacao. CT base: sucesso (201), validacao (400), duplicidade de email (409)."
+            description = "Cria usuario sem autenticacao (role USER). Informar role ADMIN exige JWT de administrador. CT base: sucesso (201), validacao (400), role ADMIN sem ser admin (403), duplicidade de email (409)."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "201 Created - Usuario criado"),
@@ -39,8 +40,33 @@ public class UsuarioController {
             @ApiResponse(responseCode = "409", description = "409 Conflict - Email ja cadastrado"),
             @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
-    public ResponseEntity<UsuarioResponse> criar(@Valid @RequestBody UsuarioRequest usuarioRequest) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(usuarioService.criarUsuario(usuarioRequest));
+    public ResponseEntity<UsuarioResponse> criar(
+            @Valid @RequestBody UsuarioRequest usuarioRequest,
+            @RequestAttribute(value = "usuarioAutenticado", required = false) UsuarioAutenticado autenticado) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(usuarioService.criarUsuario(usuarioRequest, autenticado));
+    }
+
+    @PatchMapping("/{id}/role")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "Altera o perfil do usuario",
+            description = "Promove ou rebaixa um usuario (USER/ADMIN); exige JWT de administrador. CT base: sucesso (200), validacao (400), sem token (401), nao admin (403), nao encontrado (404), ultimo admin (409)."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "200 OK - Perfil alterado"),
+            @ApiResponse(responseCode = "400", description = "400 Bad Request - Perfil invalido"),
+            @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
+            @ApiResponse(responseCode = "403", description = "403 Forbidden - Operacao restrita a administradores"),
+            @ApiResponse(responseCode = "404", description = "404 Not Found - Usuario nao encontrado"),
+            @ApiResponse(responseCode = "409", description = "409 Conflict - Nao e possivel remover o ultimo administrador"),
+            @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
+    })
+    public ResponseEntity<UsuarioResponse> alterarRole(
+            @Parameter(description = "ID do usuario", example = "1", required = true)
+            @PathVariable Long id,
+            @Valid @RequestBody RoleRequest request,
+            @RequestAttribute("usuarioAutenticado") UsuarioAutenticado autenticado) {
+        return ResponseEntity.ok(usuarioService.alterarRole(id, request.role(), autenticado));
     }
 
     @GetMapping
