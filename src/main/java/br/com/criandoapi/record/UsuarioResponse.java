@@ -1,6 +1,5 @@
 package br.com.criandoapi.record;
 
-import br.com.criandoapi.entity.UsuarioRole;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "Dados de resposta do usuário (sem senha)")
@@ -12,9 +11,6 @@ public record UsuarioResponse(
         String nome,
 
         @Schema(description = "E-mail do usuário", example = "joao@email.com")
-        String email,
-
-        @Schema(description = "Perfil do usuário", example = "USER")
-        UsuarioRole role
+        String email
 ) {
 }

@@ -3,6 +3,7 @@ package br.com.criandoapi.record;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 
@@ -11,6 +12,6 @@ public record PedidoRequest(
         @Schema(description = "Lista de itens do pedido. Deve conter pelo menos 1 item. O estoque será baixado automaticamente.", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotEmpty(message = "O pedido deve ter pelo menos um item")
         @Valid
-        List<@jakarta.validation.constraints.NotNull(message = "Item nao pode ser nulo") ItemPedidoRequest> itens
+        List<@NotNull(message = "Item nao pode ser nulo") ItemPedidoRequest> itens
 ) {
 }

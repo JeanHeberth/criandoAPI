@@ -13,8 +13,6 @@ import java.util.Optional;
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     List<Usuario> findByNomeContainingIgnoreCase(String nome);
 
-    long countByRole(br.com.criandoapi.entity.UsuarioRole role);
-
     Optional<Usuario> findByEmail(String email);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from Usuario u where u.id = :id")
