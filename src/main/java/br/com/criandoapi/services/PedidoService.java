@@ -6,7 +6,14 @@ import br.com.criandoapi.record.*;
 import br.com.criandoapi.repository.PedidoRepository;
 import br.com.criandoapi.repository.ProdutoRepository;
 import br.com.criandoapi.repository.UsuarioRepository;
-import jakarta.servlet.http.HttpServletRequest;
+import br.com.criandoapi.security.UsuarioAutenticado;
+import br.com.criandoapi.exception.ConflictException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+import java.util.Map;
+import java.util.TreeMap;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,10 +23,11 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.util.List;
 
-import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
+@Transactional(readOnly = true)
 public class PedidoService {
 
     private static final BigDecimal LIMITE_MAXIMO_VALOR_TOTAL = new BigDecimal("9999999999999.99");
@@ -37,38 +45,66 @@ public class PedidoService {
     }
 
     @Transactional
-    public PedidoResponse criar(PedidoRequest request, HttpServletRequest httpRequest) {
-        String email = (String) httpRequest.getAttribute("usuarioEmail");
-        Usuario usuario = usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Usuário não encontrado"));
+    public PedidoResponse criar(PedidoRequest request, UsuarioAutenticado autenticado) {
+        return criar(request, autenticado, null);
+    }
 
-        Pedido pedido = new Pedido(usuario);
-
-        for (ItemPedidoRequest itemReq : request.itens()) {
-            Produto produto = produtoRepository.findById(itemReq.produtoId())
-                    .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
-                            "Produto não encontrado com id: " + itemReq.produtoId()));
-
-            if (!produto.getAtivo()) {
-                throw new NegocioException("Produto '" + produto.getNome() + "' está inativo e não pode ser pedido");
-            }
-
-            if (produto.getEstoque() < itemReq.quantidade()) {
-                throw new NegocioException("Estoque insuficiente para o produto '" + produto.getNome() +
-                        "'. Disponível: " + produto.getEstoque() + ", Solicitado: " + itemReq.quantidade());
-            }
-
-            ItemPedido item = new ItemPedido(pedido, produto, itemReq.quantidade());
-            pedido.getItens().add(item);
-
-            // Baixa estoque
-            produto.atualizarEstoque(produto.getEstoque() - itemReq.quantidade());
-            produtoRepository.save(produto);
+    @Transactional
+    public PedidoResponse criar(PedidoRequest request, UsuarioAutenticado autenticado, String chave) {
+        if (chave != null && !chave.matches("[A-Za-z0-9._:-]{1,128}")) {
+            throw new ResponseStatusException(BAD_REQUEST, "Idempotency-Key deve ter 1 a 128 caracteres: letras, numeros, ponto, sublinhado, dois-pontos ou hifen");
         }
-
+        Usuario usuario = usuarioRepository.findByIdForUpdate(autenticado.id())
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Usuario nao encontrado"));
+        String hash = hashRequest(request);
+        String hashChave = chave == null ? null : hash(chave);
+        if (chave != null) {
+            Pedido existente = pedidoRepository.findByUsuarioIdAndIdempotencyKeyHash(usuario.getId(), hashChave).orElse(null);
+            if (existente != null) {
+                if (!hash.equals(existente.getRequestHash())) {
+                    throw new ConflictException("Idempotency-Key ja utilizada com outro payload");
+                }
+                return toResponse(existente);
+            }
+        }
+        Pedido pedido = new Pedido(usuario);
+        pedido.setIdempotencyKey(chave);
+        pedido.setIdempotencyKeyHash(hashChave);
+        pedido.setRequestHash(chave == null ? null : hash);
+        // Acquire locks in product ID order to avoid opposing lock order between orders.
+        Map<Long, Produto> produtos = new TreeMap<>();
+        request.itens().stream().map(ItemPedidoRequest::produtoId).distinct().sorted().forEach(id ->
+                produtos.put(id, produtoRepository.findByIdForUpdate(id)
+                        .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Produto nao encontrado com id: " + id))));
+        for (ItemPedidoRequest itemReq : request.itens()) {
+            Produto produto = produtos.get(itemReq.produtoId());
+            if (!produto.getAtivo()) {
+                throw new NegocioException("Produto '" + produto.getNome() + "' esta inativo e nao pode ser pedido");
+            }
+            if (produto.getEstoque() < itemReq.quantidade()) {
+                throw new NegocioException("Estoque insuficiente para o produto '" + produto.getNome() + "'");
+            }
+            pedido.getItens().add(new ItemPedido(pedido, produto, itemReq.quantidade()));
+            produto.atualizarEstoque(produto.getEstoque() - itemReq.quantidade());
+        }
         pedido.calcularTotal();
         validarLimiteValorTotal(pedido.getValorTotal());
+        produtos.values().forEach(produtoRepository::save);
         return toResponse(pedidoRepository.save(pedido));
+    }
+
+    private String hashRequest(PedidoRequest request) {
+        return hash(request.itens().stream().map(item -> item.produtoId() + ":" + item.quantidade())
+                .collect(java.util.stream.Collectors.joining(";")));
+    }
+
+    private String hash(String value) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException(ex);
+        }
     }
 
     private void validarLimiteValorTotal(BigDecimal valorTotal) {
@@ -79,25 +115,25 @@ public class PedidoService {
         }
     }
 
-    public Page<PedidoResponse> listar(PedidoStatus status, HttpServletRequest httpRequest, Pageable pageable) {
-        Long usuarioId = getUsuarioId(httpRequest);
+    public Page<PedidoResponse> listar(PedidoStatus status, UsuarioAutenticado autenticado, Pageable pageable) {
+        Long usuarioId = autenticado.id();
         if (status != null) {
             return pedidoRepository.findByUsuarioIdAndStatus(usuarioId, status, pageable).map(this::toResponse);
         }
         return pedidoRepository.findByUsuarioId(usuarioId, pageable).map(this::toResponse);
     }
 
-    public PedidoResponse buscarPorId(Long id, HttpServletRequest httpRequest) {
-        Long usuarioId = getUsuarioId(httpRequest);
+    public PedidoResponse buscarPorId(Long id, UsuarioAutenticado autenticado) {
+        Long usuarioId = autenticado.id();
         Pedido pedido = pedidoRepository.findByIdAndUsuarioId(id, usuarioId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Pedido não encontrado com id: " + id));
         return toResponse(pedido);
     }
 
     @Transactional
-    public PedidoResponse transicionarStatus(Long id, StatusRequest request, HttpServletRequest httpRequest) {
-        Long usuarioId = getUsuarioId(httpRequest);
-        Pedido pedido = pedidoRepository.findByIdAndUsuarioId(id, usuarioId)
+    public PedidoResponse transicionarStatus(Long id, StatusRequest request, UsuarioAutenticado autenticado) {
+        Long usuarioId = autenticado.id();
+        Pedido pedido = pedidoRepository.findByIdAndUsuarioIdForUpdate(id, usuarioId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Pedido não encontrado com id: " + id));
 
         PedidoStatus novoStatus = request.status();
@@ -110,38 +146,41 @@ public class PedidoService {
             );
         }
 
+        if (novoStatus == PedidoStatus.CANCELADO) {
+            devolverEstoque(pedido);
+        }
         pedido.transicionarStatus(novoStatus);
         return toResponse(pedidoRepository.save(pedido));
     }
 
     @Transactional
-    public void cancelar(Long id, HttpServletRequest httpRequest) {
-        Long usuarioId = getUsuarioId(httpRequest);
-        Pedido pedido = pedidoRepository.findByIdAndUsuarioId(id, usuarioId)
+    public void cancelar(Long id, UsuarioAutenticado autenticado) {
+        Long usuarioId = autenticado.id();
+        Pedido pedido = pedidoRepository.findByIdAndUsuarioIdForUpdate(id, usuarioId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Pedido não encontrado com id: " + id));
 
-        if (pedido.getStatus() != PedidoStatus.PENDENTE) {
-            throw new NegocioException(
-                    "Apenas pedidos com status PENDENTE podem ser cancelados. Status atual: " + pedido.getStatus()
-            );
+        if (!pedido.getStatus().podeTransicionarPara(PedidoStatus.CANCELADO)) {
+            throw new NegocioException("Apenas pedidos PENDENTE ou CONFIRMADO podem ser cancelados");
         }
-
-        // Devolve estoque
-        pedido.getItens().forEach(item -> {
-            Produto produto = item.getProduto();
-            produto.atualizarEstoque(produto.getEstoque() + item.getQuantidade());
-            produtoRepository.save(produto);
-        });
-
+        devolverEstoque(pedido);
         pedido.transicionarStatus(PedidoStatus.CANCELADO);
         pedidoRepository.save(pedido);
     }
 
-    private Long getUsuarioId(HttpServletRequest httpRequest) {
-        String email = (String) httpRequest.getAttribute("usuarioEmail");
-        return usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new ResponseStatusException(FORBIDDEN, "Acesso negado"))
-                .getId();
+    private void devolverEstoque(Pedido pedido) {
+        Map<Long, Long> quantidades = new TreeMap<>();
+        pedido.getItens().forEach(item -> quantidades.merge(item.getProduto().getId(),
+                item.getQuantidade().longValue(), Long::sum));
+        quantidades.forEach((id, quantidade) -> {
+            Produto produto = produtoRepository.findByIdForUpdate(id)
+                    .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Produto nao encontrado"));
+            long estoque = produto.getEstoque().longValue() + quantidade;
+            if (estoque > Integer.MAX_VALUE) {
+                throw new NegocioException("Devolucao excede o limite de estoque do produto");
+            }
+            produto.atualizarEstoque((int) estoque);
+            produtoRepository.save(produto);
+        });
     }
 
     private String transicoesPossiveis(PedidoStatus status) {

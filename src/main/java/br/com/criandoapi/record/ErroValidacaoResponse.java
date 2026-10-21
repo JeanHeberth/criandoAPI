@@ -23,7 +23,10 @@ public record ErroValidacaoResponse(
         LocalDateTime timestamp,
 
         @Schema(description = "Lista dos campos com erro e suas respectivas mensagens")
-        List<CampoErro> campos
+        List<CampoErro> campos,
+
+        String codigo,
+        String requestId
 ) {
     @Schema(description = "Detalhe de validação por campo")
     public record CampoErro(
@@ -40,8 +43,10 @@ public record ErroValidacaoResponse(
                 "Erro de Validação",
                 "Um ou mais campos estão inválidos",
                 path,
-                LocalDateTime.now(),
-                campos
+                LocalDateTime.now(java.time.Clock.systemUTC()),
+                campos,
+                ErroResponse.codigo(status),
+                org.slf4j.MDC.get("requestId")
         );
     }
 }
