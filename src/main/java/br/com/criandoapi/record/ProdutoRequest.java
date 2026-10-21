@@ -21,6 +21,7 @@ public record ProdutoRequest(
         @Schema(description = "Preço unitário do produto (deve ser maior que zero)", example = "3499.99", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotNull(message = "Preço é obrigatório")
         @DecimalMin(value = "0.01", message = "Preço deve ser maior que zero")
+        @Digits(integer = 8, fraction = 2, message = "Preco aceita ate 8 digitos inteiros e 2 decimais")
         BigDecimal preco,
 
         @Schema(description = "Quantidade disponível em estoque (não pode ser negativa)", example = "50", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -28,7 +29,7 @@ public record ProdutoRequest(
         @Min(value = 0, message = "Estoque não pode ser negativo")
         Integer estoque,
 
-        @Schema(description = "Categoria do produto. Valores aceitos: ELETRONICO, VESTUARIO, ALIMENTO, LIVRO, OUTRO", example = "ELETRONICO", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(description = "Categoria do produto. Valores aceitos: ELETRONICO, VESTUARIO, ALIMENTACAO, LIVRO, ESPORTE, CASA_E_JARDIM, OUTRO", example = "ELETRONICO", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotNull(message = "Categoria é obrigatória")
         ProdutoCategoria categoria
 ) {

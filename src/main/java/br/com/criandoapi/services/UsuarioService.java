@@ -6,6 +6,8 @@ import br.com.criandoapi.record.UsuarioRequest;
 import br.com.criandoapi.record.UsuarioResponse;
 import br.com.criandoapi.repository.UsuarioRepository;
 import br.com.criandoapi.security.PasswordUtils;
+import br.com.criandoapi.security.UsuarioAutenticado;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -14,6 +16,7 @@ import java.util.List;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
+@Transactional(readOnly = true)
 public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
@@ -22,6 +25,7 @@ public class UsuarioService {
         this.usuarioRepository = usuarioRepository;
     }
 
+    @Transactional
     public UsuarioResponse criarUsuario(UsuarioRequest usuarioRequest) {
         // 409 - Conflito: e-mail já cadastrado
         if (usuarioRepository.findByEmail(usuarioRequest.email()).isPresent()) {
@@ -32,20 +36,23 @@ public class UsuarioService {
         return toResponse(usuarioSalvo);
     }
 
-    public List<UsuarioResponse> listarUsuarios() {
+    public List<UsuarioResponse> listarUsuarios(UsuarioAutenticado autenticado) {
+        autenticado.exigirAdministrador();
         return usuarioRepository.findAll()
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    public UsuarioResponse buscarPorId(Long id) {
+    public UsuarioResponse buscarPorId(Long id, UsuarioAutenticado autenticado) {
+        autenticado.exigirProprioUsuarioOuAdministrador(id);
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Usuario nao encontrado com id: " + id));
         return toResponse(usuario);
     }
 
-    public List<UsuarioResponse> buscarPorNome(String nome) {
+    public List<UsuarioResponse> buscarPorNome(String nome, UsuarioAutenticado autenticado) {
+        autenticado.exigirAdministrador();
         List<UsuarioResponse> usuarios = usuarioRepository.findByNomeContainingIgnoreCase(nome)
                 .stream()
                 .map(this::toResponse)
@@ -57,7 +64,9 @@ public class UsuarioService {
         return usuarios;
     }
 
-    public UsuarioResponse atualizarUsuario(Long id, UsuarioRequest usuarioRequest) {
+    @Transactional
+    public UsuarioResponse atualizarUsuario(Long id, UsuarioRequest usuarioRequest, UsuarioAutenticado autenticado) {
+        autenticado.exigirProprioUsuarioOuAdministrador(id);
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Usuario nao encontrado com id: " + id));
 
@@ -72,7 +81,9 @@ public class UsuarioService {
         return toResponse(usuarioRepository.save(usuario));
     }
 
-    public void deletarUsuario(Long id) {
+    @Transactional
+    public void deletarUsuario(Long id, UsuarioAutenticado autenticado) {
+        autenticado.exigirProprioUsuarioOuAdministrador(id);
         if (!usuarioRepository.existsById(id)) {
             throw new ResponseStatusException(NOT_FOUND, "Usuario nao encontrado com id: " + id);
         }

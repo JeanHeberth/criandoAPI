@@ -3,7 +3,6 @@ package br.com.criandoapi.config;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,15 +35,15 @@ public class OpenApiConfig {
 								API de estudo com modulos: Auth, Usuarios, Produtos, Pedidos e Health.
 								
 								Status code padrao documentados nos endpoints:
-								200, 201, 204, 400, 401, 404, 409, 422, 500.
+								200, 201, 204, 400, 401, 403, 404, 409, 422, 500.
 
 								Paginacao:
 								- page: numero da pagina (comeca em 0)
-								- size: quantidade por pagina
+								- size: quantidade por pagina (1 a 100)
 								- sort: formato campo,direcao (ex.: criadoEm,desc ou nome,asc)
 								
 								Para endpoints protegidos, use JWT no botao Authorize:
-								Bearer <token>
+								Cole apenas o token no campo de autorizacao HTTP Bearer.
 								"""))
 				.components(new Components()
 						.addSecuritySchemes(SECURITY_SCHEME_NAME,
@@ -53,8 +52,39 @@ public class OpenApiConfig {
 										.type(SecurityScheme.Type.HTTP)
 										.scheme("bearer")
 										.bearerFormat("JWT")))
-				.addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME));
+				;
 	}
+
+    @Bean
+    public org.springdoc.core.customizers.OpenApiCustomizer contratosComuns() {
+        return openApi -> {
+            if (openApi.getPaths() == null) return;
+            openApi.getPaths().forEach((path, item) -> item.readOperationsMap().forEach((method, operation) -> {
+                boolean protegido = operation.getSecurity() != null && !operation.getSecurity().isEmpty();
+                if (protegido) {
+                    operation.getResponses().addApiResponse("403", new io.swagger.v3.oas.models.responses.ApiResponse()
+                            .description("Acesso negado ao perfil ou recurso solicitado"));
+                }
+                boolean admin = (path.endsWith("/usuarios") && method == io.swagger.v3.oas.models.PathItem.HttpMethod.GET)
+                        || path.endsWith("/usuarios/buscar") || path.contains("/manutencao/")
+                        || (path.contains("/produtos") && method != io.swagger.v3.oas.models.PathItem.HttpMethod.GET);
+                if (admin) operation.setDescription(operation.getDescription() + " Exige perfil ADMIN.");
+                operation.getResponses().forEach((status, response) -> {
+                    response.addHeaderObject("X-Request-ID", new io.swagger.v3.oas.models.headers.Header()
+                            .description("Identificador da requisicao para correlacao de logs")
+                            .schema(new io.swagger.v3.oas.models.media.StringSchema()));
+                    if (status.matches("[45][0-9]{2}")) {
+                        io.swagger.v3.core.converter.ModelConverters.getInstance().read(br.com.criandoapi.record.ErroResponse.class)
+                                .forEach((name, value) -> openApi.getComponents().addSchemas(name, value));
+                        io.swagger.v3.oas.models.media.Schema<?> erroSchema = new io.swagger.v3.oas.models.media.Schema<>()
+                                .$ref("#/components/schemas/ErroResponse");
+                        response.setContent(new io.swagger.v3.oas.models.media.Content().addMediaType("application/json",
+                                new io.swagger.v3.oas.models.media.MediaType().schema(erroSchema)));
+                    }
+                });
+            }));
+        };
+    }
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void logSwaggerUrl() {

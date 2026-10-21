@@ -11,10 +11,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
+import br.com.criandoapi.security.UsuarioAutenticado;
+import br.com.criandoapi.config.Paginacao;
+import java.util.Set;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -36,20 +37,23 @@ public class PedidoController {
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "Cria pedido",
-            description = "Cria pedido com JWT e baixa estoque. CT base: sucesso (201), validacao (400), sem token (401), produto nao encontrado (404), regra de negocio (422)."
+            description = "Cria pedido com JWT e baixa estoque. Idempotency-Key opcional evita duplicacao; reenvios retornam o estado atual do mesmo pedido. CT base: sucesso (201), validacao (400), sem token (401), produto nao encontrado (404), regra de negocio (422)."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "201 Created - Pedido criado"),
             @ApiResponse(responseCode = "400", description = "400 Bad Request - Dados invalidos"),
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
             @ApiResponse(responseCode = "404", description = "404 Not Found - Produto nao encontrado"),
+            @ApiResponse(responseCode = "409", description = "409 Conflict - Chave de idempotencia reutilizada com outro payload ou conflito concorrente"),
             @ApiResponse(responseCode = "422", description = "422 Unprocessable Entity - Regra de negocio violada"),
             @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
     public ResponseEntity<PedidoResponse> criar(
             @Valid @RequestBody PedidoRequest request,
-            HttpServletRequest httpRequest) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(pedidoService.criar(request, httpRequest));
+            @Parameter(description = "Chave opcional de idempotencia, 1 a 128 caracteres. Mesma chave e payload retornam o mesmo pedido; payload diferente retorna 409.")
+            @RequestHeader(value = "Idempotency-Key", required = false) String chave,
+            @RequestAttribute("usuarioAutenticado") UsuarioAutenticado autenticado) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(pedidoService.criar(request, autenticado, chave));
     }
 
     @GetMapping
@@ -72,19 +76,14 @@ public class PedidoController {
             @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "Ordenacao no formato campo,direcao. Direcao aceita: asc ou desc.", example = "criadoEm,desc")
             @RequestParam(defaultValue = "criadoEm,desc") String sort,
-            HttpServletRequest httpRequest) {
+            @RequestAttribute("usuarioAutenticado") UsuarioAutenticado autenticado) {
         Pageable pageable = buildPageable(page, size, sort, "criadoEm");
-        return ResponseEntity.ok(pedidoService.listar(status, httpRequest, pageable));
+        return ResponseEntity.ok(pedidoService.listar(status, autenticado, pageable));
     }
 
     private Pageable buildPageable(int page, int size, String sortParam, String defaultField) {
-        String normalized = (sortParam == null || sortParam.isBlank()) ? defaultField + ",desc" : sortParam;
-        String[] parts = normalized.split(",", 2);
-        String field = parts[0].isBlank() ? defaultField : parts[0].trim();
-        Sort.Direction direction = (parts.length > 1 && "asc".equalsIgnoreCase(parts[1].trim()))
-                ? Sort.Direction.ASC
-                : Sort.Direction.DESC;
-        return PageRequest.of(page, size, Sort.by(direction, field));
+        return Paginacao.criar(page, size, sortParam, defaultField, Sort.Direction.DESC,
+                Set.of("id", "criadoEm", "atualizadoEm", "status", "valorTotal"));
     }
 
     @GetMapping("/{id}")
@@ -102,8 +101,8 @@ public class PedidoController {
     public ResponseEntity<PedidoResponse> buscarPorId(
             @Parameter(description = "ID do pedido", example = "1", required = true)
             @PathVariable Long id,
-            HttpServletRequest httpRequest) {
-        return ResponseEntity.ok(pedidoService.buscarPorId(id, httpRequest));
+            @RequestAttribute("usuarioAutenticado") UsuarioAutenticado autenticado) {
+        return ResponseEntity.ok(pedidoService.buscarPorId(id, autenticado));
     }
 
     @PatchMapping("/{id}/status")
@@ -124,15 +123,15 @@ public class PedidoController {
             @Parameter(description = "ID do pedido", example = "1", required = true)
             @PathVariable Long id,
             @Valid @RequestBody StatusRequest request,
-            HttpServletRequest httpRequest) {
-        return ResponseEntity.ok(pedidoService.transicionarStatus(id, request, httpRequest));
+            @RequestAttribute("usuarioAutenticado") UsuarioAutenticado autenticado) {
+        return ResponseEntity.ok(pedidoService.transicionarStatus(id, request, autenticado));
     }
 
     @DeleteMapping("/{id}")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "Cancela pedido",
-            description = "Cancela pedido PENDENTE e devolve estoque. CT base: sucesso (204), sem token (401), nao encontrado (404), regra de negocio (422)."
+            description = "Cancela pedido PENDENTE ou CONFIRMADO e devolve estoque uma unica vez. CT base: sucesso (204), sem token (401), nao encontrado (404), regra de negocio (422)."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "204 No Content - Pedido cancelado"),
@@ -144,8 +143,8 @@ public class PedidoController {
     public ResponseEntity<Void> cancelar(
             @Parameter(description = "ID do pedido", example = "1", required = true)
             @PathVariable Long id,
-            HttpServletRequest httpRequest) {
-        pedidoService.cancelar(id, httpRequest);
+            @RequestAttribute("usuarioAutenticado") UsuarioAutenticado autenticado) {
+        pedidoService.cancelar(id, autenticado);
         return ResponseEntity.noContent().build();
     }
 }

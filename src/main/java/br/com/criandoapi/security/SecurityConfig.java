@@ -9,8 +9,10 @@ import org.springframework.context.annotation.Configuration;
 public class SecurityConfig {
 
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService, UsuarioRepository usuarioRepository) {
-        return new JwtAuthenticationFilter(jwtService, usuarioRepository);
+    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService, UsuarioRepository usuarioRepository,
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper,
+            @org.springframework.beans.factory.annotation.Value("${api.version-prefix}") String prefix) {
+        return new JwtAuthenticationFilter(jwtService, usuarioRepository, objectMapper, prefix);
     }
 
 

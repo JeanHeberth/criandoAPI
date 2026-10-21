@@ -42,7 +42,7 @@ pipeline {
             }
         }
 
-        stage('Build da API') {
+        stage('Testes e build da API') {
             steps {
                 script {
                     if (isUnix()) {
@@ -51,8 +51,7 @@ pipeline {
 
                             chmod +x gradlew
 
-                            ./gradlew clean bootWar \
-                                -x test \
+                            ./gradlew clean test bootWar \
                                 --stacktrace \
                                 --no-daemon
                         '''
@@ -62,8 +61,7 @@ pipeline {
 
                             echo Gerando WAR da API...
 
-                            call gradlew.bat clean bootWar ^
-                                -x test ^
+                            call gradlew.bat clean test bootWar ^
                                 --stacktrace ^
                                 --no-daemon
 
@@ -288,6 +286,11 @@ pipeline {
         }
 
         always {
+            junit(
+                testResults: 'build/test-results/test/*.xml',
+                allowEmptyResults: true
+            )
+
             archiveArtifacts(
                 artifacts: 'build/libs/*.war',
                 allowEmptyArchive: true,

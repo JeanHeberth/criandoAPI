@@ -14,7 +14,8 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "pedidos")
+@Table(name = "pedidos", uniqueConstraints = @UniqueConstraint(
+        name = "uk_pedido_usuario_idempotencia", columnNames = {"usuario_id", "idempotency_key_hash"}))
 public class Pedido {
 
     @Id
@@ -40,6 +41,15 @@ public class Pedido {
 
     @Column
     private LocalDateTime atualizadoEm;
+
+    @Column(name = "idempotency_key", length = 128)
+    private String idempotencyKey;
+
+    @Column(name = "idempotency_key_hash", length = 64)
+    private String idempotencyKeyHash;
+
+    @Column(name = "request_hash", length = 64)
+    private String requestHash;
 
     public Pedido(Usuario usuario) {
         this.usuario = usuario;
