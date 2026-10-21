@@ -21,7 +21,6 @@ import br.com.criandoapi.repository.PedidoRepository;
 import br.com.criandoapi.repository.ProdutoRepository;
 import br.com.criandoapi.repository.UsuarioRepository;
 import br.com.criandoapi.security.UsuarioAutenticado;
-import br.com.criandoapi.entity.UsuarioRole;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,7 +49,7 @@ class PedidoServiceTest {
     @Mock
     private UsuarioRepository usuarioRepository;
 
-    private final UsuarioAutenticado autenticado = new UsuarioAutenticado(1L, "teste@api.com", UsuarioRole.USER);
+    private final UsuarioAutenticado autenticado = new UsuarioAutenticado(1L, "teste@api.com");
 
     @InjectMocks
     private PedidoService pedidoService;

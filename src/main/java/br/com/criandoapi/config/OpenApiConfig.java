@@ -63,12 +63,8 @@ public class OpenApiConfig {
                 boolean protegido = operation.getSecurity() != null && !operation.getSecurity().isEmpty();
                 if (protegido) {
                     operation.getResponses().addApiResponse("403", new io.swagger.v3.oas.models.responses.ApiResponse()
-                            .description("Acesso negado ao perfil ou recurso solicitado"));
+                            .description("Acesso negado ao recurso solicitado"));
                 }
-                boolean admin = (path.endsWith("/usuarios") && method == io.swagger.v3.oas.models.PathItem.HttpMethod.GET)
-                        || path.endsWith("/usuarios/buscar") || path.contains("/manutencao/")
-                        || (path.contains("/produtos") && method != io.swagger.v3.oas.models.PathItem.HttpMethod.GET);
-                if (admin) operation.setDescription(operation.getDescription() + " Exige perfil ADMIN.");
                 operation.getResponses().forEach((status, response) -> {
                     response.addHeaderObject("X-Request-ID", new io.swagger.v3.oas.models.headers.Header()
                             .description("Identificador da requisicao para correlacao de logs")

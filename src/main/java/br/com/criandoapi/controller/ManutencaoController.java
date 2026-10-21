@@ -36,8 +36,7 @@ public class ManutencaoController {
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
             @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
-    public ResponseEntity<Void> limparBanco(@org.springframework.web.bind.annotation.RequestAttribute("usuarioAutenticado") br.com.criandoapi.security.UsuarioAutenticado autenticado) {
-        autenticado.exigirAdministrador();
+    public ResponseEntity<Void> limparBanco() {
         manutencaoService.limparBanco();
         return ResponseEntity.noContent().build();
     }

@@ -1,7 +1,6 @@
 package br.com.criandoapi.integration;
 
 import br.com.criandoapi.entity.Usuario;
-import br.com.criandoapi.entity.UsuarioRole;
 import br.com.criandoapi.repository.UsuarioRepository;
 import br.com.criandoapi.security.JwtService;
 import br.com.criandoapi.security.PasswordUtils;
@@ -34,15 +33,12 @@ class ManutencaoIntegrationTest {
     @Autowired JwtService jwt;
 
     @Test
-    void limpezaExigeAdministradorMesmoQuandoHabilitada() throws Exception {
+    void limpezaRemoveUsuariosQuandoHabilitada() throws Exception {
         Usuario usuario = usuarios.save(new Usuario("Usuario", "user@teste.com", PasswordUtils.hash("senha123")));
-        Usuario admin = new Usuario("Admin", "admin@teste.com", PasswordUtils.hash("senha123"));
-        admin.setRole(UsuarioRole.ADMIN);
-        admin = usuarios.save(admin);
+        mvc.perform(delete("/v1/manutencao/banco"))
+                .andExpect(status().isUnauthorized());
+        assertEquals(1, usuarios.count());
         mvc.perform(delete("/v1/manutencao/banco").header("Authorization", "Bearer " + jwt.generateToken(usuario.getEmail())))
-                .andExpect(status().isForbidden());
-        assertEquals(2, usuarios.count());
-        mvc.perform(delete("/v1/manutencao/banco").header("Authorization", "Bearer " + jwt.generateToken(admin.getEmail())))
                 .andExpect(status().isNoContent());
         assertEquals(0, usuarios.count());
     }
