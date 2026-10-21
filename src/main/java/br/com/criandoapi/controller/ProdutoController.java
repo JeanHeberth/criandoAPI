@@ -13,7 +13,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -21,6 +20,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.Set;
+import br.com.criandoapi.config.Paginacao;
 
 @RestController
 @RequestMapping("${api.version-prefix}/produtos")
@@ -108,21 +109,8 @@ public class ProdutoController {
     }
 
     private Pageable buildPageable(int page, int size, String sortParam, String defaultField, Sort.Direction defaultDirection) {
-        String normalized = (sortParam == null || sortParam.isBlank())
-                ? defaultField + "," + defaultDirection.name().toLowerCase()
-                : sortParam;
-        String[] parts = normalized.split(",", 2);
-        String field = parts[0].isBlank() ? defaultField : parts[0].trim();
-        Sort.Direction direction;
-        if (parts.length > 1 && "desc".equalsIgnoreCase(parts[1].trim())) {
-            direction = Sort.Direction.DESC;
-        } else if (parts.length > 1 && "asc".equalsIgnoreCase(parts[1].trim())) {
-            direction = Sort.Direction.ASC;
-        } else {
-            direction = defaultDirection;
-        }
-
-        return PageRequest.of(page, size, Sort.by(direction, field));
+        return Paginacao.criar(page, size, sortParam, defaultField, defaultDirection,
+                Set.of("id", "nome", "preco", "estoque", "categoria", "criadoEm", "atualizadoEm"));
     }
 
     @PostMapping

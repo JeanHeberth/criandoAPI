@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import br.com.criandoapi.security.UsuarioAutenticado;
 
 @RestController
 @RequestMapping("${api.version-prefix}/usuarios")
@@ -46,15 +47,15 @@ public class UsuarioController {
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "Lista usuarios",
-            description = "Lista todos os usuarios com JWT. CT base: token valido (200), sem token (401)."
+            description = "Lista todos os usuarios; exige JWT de administrador. CT base: token valido (200), sem token (401)."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "200 OK - Lista retornada"),
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
             @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
-    public ResponseEntity<List<UsuarioResponse>> listar() {
-        return ResponseEntity.ok(usuarioService.listarUsuarios());
+    public ResponseEntity<List<UsuarioResponse>> listar(@RequestAttribute("usuarioAutenticado") UsuarioAutenticado autenticado) {
+        return ResponseEntity.ok(usuarioService.listarUsuarios(autenticado));
     }
 
     @GetMapping("/{id}")
@@ -71,15 +72,16 @@ public class UsuarioController {
     })
     public ResponseEntity<UsuarioResponse> buscarPorId(
             @Parameter(description = "ID do usuario", example = "1", required = true)
-            @PathVariable Long id) {
-        return ResponseEntity.ok(usuarioService.buscarPorId(id));
+            @PathVariable Long id,
+            @RequestAttribute("usuarioAutenticado") UsuarioAutenticado autenticado) {
+        return ResponseEntity.ok(usuarioService.buscarPorId(id, autenticado));
     }
 
     @GetMapping("/buscar")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "Busca usuarios por nome",
-            description = "Busca por nome com JWT. CT base: com resultado (200), sem resultado (200), sem token (401)."
+            description = "Busca por nome; exige JWT de administrador. CT base: com resultado (200), sem resultado (404), sem token (401)."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "200 OK - Busca executada"),
@@ -88,15 +90,16 @@ public class UsuarioController {
     })
     public ResponseEntity<List<UsuarioResponse>> buscarPorNome(
             @Parameter(description = "Nome ou parte do nome", example = "Joao", required = true)
-            @RequestParam String nome) {
-        return ResponseEntity.ok(usuarioService.buscarPorNome(nome));
+            @RequestParam String nome,
+            @RequestAttribute("usuarioAutenticado") UsuarioAutenticado autenticado) {
+        return ResponseEntity.ok(usuarioService.buscarPorNome(nome, autenticado));
     }
 
     @PutMapping("/{id}")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "Atualiza usuario",
-            description = "Atualiza usuario com JWT. CT base: sucesso (200), validacao (400), nao encontrado (404), email duplicado (409)."
+            description = "Atualiza o proprio usuario ou permite administrador. CT base: sucesso (200), validacao (400), nao encontrado (404), email duplicado (409)."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "200 OK - Usuario atualizado"),
@@ -109,15 +112,16 @@ public class UsuarioController {
     public ResponseEntity<UsuarioResponse> atualizar(
             @Parameter(description = "ID do usuario", example = "1", required = true)
             @PathVariable Long id,
-            @Valid @RequestBody UsuarioRequest usuarioRequest) {
-        return ResponseEntity.ok(usuarioService.atualizarUsuario(id, usuarioRequest));
+            @Valid @RequestBody UsuarioRequest usuarioRequest,
+            @RequestAttribute("usuarioAutenticado") UsuarioAutenticado autenticado) {
+        return ResponseEntity.ok(usuarioService.atualizarUsuario(id, usuarioRequest, autenticado));
     }
 
     @DeleteMapping("/{id}")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "Remove usuario",
-            description = "Remove usuario com JWT. CT base: sucesso (204), nao encontrado (404), sem token (401)."
+            description = "Remove o proprio usuario ou permite administrador. CT base: sucesso (204), nao encontrado (404), sem token (401)."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "204 No Content - Usuario removido"),
@@ -127,8 +131,9 @@ public class UsuarioController {
     })
     public ResponseEntity<Void> deletar(
             @Parameter(description = "ID do usuario", example = "1", required = true)
-            @PathVariable Long id) {
-        usuarioService.deletarUsuario(id);
+            @PathVariable Long id,
+            @RequestAttribute("usuarioAutenticado") UsuarioAutenticado autenticado) {
+        usuarioService.deletarUsuario(id, autenticado);
         return ResponseEntity.noContent().build();
     }
 }

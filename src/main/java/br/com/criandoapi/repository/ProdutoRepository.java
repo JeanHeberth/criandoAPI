@@ -5,9 +5,12 @@ import br.com.criandoapi.entity.ProdutoCategoria;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
+import java.util.Optional;
 import java.math.BigDecimal;
 
 public interface ProdutoRepository extends JpaRepository<Produto, Long> {
@@ -33,5 +36,8 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
             @Param("precoMax") BigDecimal precoMax,
             Pageable pageable
     );
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Produto p where p.id = :id")
+    Optional<Produto> findByIdForUpdate(@Param("id") Long id);
 }
 

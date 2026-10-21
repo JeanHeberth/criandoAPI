@@ -1,6 +1,8 @@
 package br.com.criandoapi.controller;
 
 import br.com.criandoapi.entity.PedidoStatus;
+import br.com.criandoapi.entity.UsuarioRole;
+import br.com.criandoapi.security.UsuarioAutenticado;
 import br.com.criandoapi.exception.GlobalExceptionHandler;
 import br.com.criandoapi.exception.NegocioException;
 import br.com.criandoapi.record.ItemPedidoResponse;
@@ -76,7 +78,7 @@ class PedidoControllerTest {
                 null
         );
 
-        when(pedidoService.criar(any(), any())).thenReturn(response);
+        when(pedidoService.criar(any(), any(), any())).thenReturn(response);
 
         String body = """
                 {
@@ -87,6 +89,7 @@ class PedidoControllerTest {
                 """;
 
         mockMvc.perform(post("/pedidos")
+                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com", UsuarioRole.USER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -98,7 +101,7 @@ class PedidoControllerTest {
     @Test
     @DisplayName("CT02 - produto nao encontrado retorna 404")
     void deveRetornar404QuandoProdutoNaoExiste() throws Exception {
-        when(pedidoService.criar(any(), any()))
+        when(pedidoService.criar(any(), any(), any()))
                 .thenThrow(new ResponseStatusException(NOT_FOUND, "Produto nao encontrado com id: 999"));
 
         String body = """
@@ -110,6 +113,7 @@ class PedidoControllerTest {
                 """;
 
         mockMvc.perform(post("/pedidos")
+                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com", UsuarioRole.USER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isNotFound())
@@ -119,7 +123,7 @@ class PedidoControllerTest {
     @Test
     @DisplayName("CT03 - estoque insuficiente retorna 422")
     void deveRetornar422QuandoEstoqueInsuficiente() throws Exception {
-        when(pedidoService.criar(any(), any()))
+        when(pedidoService.criar(any(), any(), any()))
                 .thenThrow(new NegocioException("Estoque insuficiente para o produto"));
 
         String body = """
@@ -131,6 +135,7 @@ class PedidoControllerTest {
                 """;
 
         mockMvc.perform(post("/pedidos")
+                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com", UsuarioRole.USER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().is(422))
@@ -147,6 +152,7 @@ class PedidoControllerTest {
                 """;
 
         mockMvc.perform(post("/pedidos")
+                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com", UsuarioRole.USER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -175,7 +181,7 @@ class PedidoControllerTest {
                 null
         );
 
-        when(pedidoService.criar(any(), any()))
+        when(pedidoService.criar(any(), any(), any()))
                 .thenReturn(response);
 
         String body = """
@@ -187,6 +193,7 @@ class PedidoControllerTest {
                 """;
 
         mockMvc.perform(post("/pedidos")
+                        .requestAttr("usuarioAutenticado", new UsuarioAutenticado(1L, "teste@api.com", UsuarioRole.USER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())

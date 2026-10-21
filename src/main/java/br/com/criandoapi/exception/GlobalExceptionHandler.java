@@ -17,11 +17,47 @@ import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler({org.springframework.dao.ConcurrencyFailureException.class,
+            jakarta.persistence.LockTimeoutException.class, jakarta.persistence.PessimisticLockException.class})
+    public ResponseEntity<ErroResponse> handleConcorrencia(Exception ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ErroResponse.of(409, "Conflito concorrente",
+                "Recurso em uso por outra operacao. Tente novamente.", request.getRequestURI()));
+    }
+
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<ErroResponse> handleParametroAusente(
+            org.springframework.web.bind.MissingServletRequestParameterException ex, HttpServletRequest request) {
+        return ResponseEntity.badRequest().body(ErroResponse.of(400, "Requisicao invalida",
+                "Parametro obrigatorio ausente: " + ex.getParameterName(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler({org.springframework.web.servlet.resource.NoResourceFoundException.class,
+            org.springframework.web.servlet.NoHandlerFoundException.class})
+    public ResponseEntity<ErroResponse> handleNaoEncontrado(Exception ex, HttpServletRequest request) {
+        return ResponseEntity.status(404).body(ErroResponse.of(404, "Recurso nao encontrado",
+                "Endpoint nao encontrado", request.getRequestURI()));
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErroResponse> handleMetodo(
+            org.springframework.web.HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+        return ResponseEntity.status(405).header("Allow", String.join(", ", ex.getSupportedMethods() == null
+                ? new String[0] : ex.getSupportedMethods())).body(ErroResponse.of(405, "Metodo nao permitido",
+                "Metodo HTTP nao permitido para este endpoint", request.getRequestURI()));
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErroResponse> handleContentType(Exception ex, HttpServletRequest request) {
+        return ResponseEntity.status(415).body(ErroResponse.of(415, "Tipo de conteudo invalido",
+                "Content-Type nao suportado", request.getRequestURI()));
+    }
+
 
     /**
      * 400 - Erros de validação do Bean Validation (@Valid)
@@ -138,26 +174,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErroResponse> handleDataIntegrity(
             DataIntegrityViolationException ex, HttpServletRequest request) {
 
-        Throwable causaMaisEspecifica = ex.getMostSpecificCause();
-        String causa = (causaMaisEspecifica != null) ? causaMaisEspecifica.getMessage() : ex.getMessage();
-
-        String mensagem = "Nao foi possivel processar os dados informados. Revise os valores e tente novamente.";
-        if (causa != null) {
-            String causaNormalizada = causa.toLowerCase(Locale.ROOT);
-            if (causaNormalizada.contains("out of range value")
-                    || causaNormalizada.contains("data truncation")
-                    || causaNormalizada.contains("valor_total")) {
-                mensagem = "Valor total do pedido excede o limite permitido de 9.999.999.999.999,99. Revise quantidade ou valor dos itens.";
-            }
-        }
-
-        ErroResponse erro = ErroResponse.of(
-                HttpStatus.UNPROCESSABLE_ENTITY.value(),
-                "Erro de Negocio",
-                mensagem,
-                request.getRequestURI()
-        );
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(erro);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ErroResponse.of(409,
+                "Conflito de dados", "Operacao conflita com um recurso existente ou vinculado.", request.getRequestURI()));
     }
 
     /**
@@ -185,6 +203,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErroResponse> handleGenerico(
             Exception ex, HttpServletRequest request) {
 
+        log.error("Erro inesperado: {}", ex.getClass().getName());
         ErroResponse erro = ErroResponse.of(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Erro Interno",

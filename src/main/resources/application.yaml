@@ -9,13 +9,18 @@ spring:
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
   jpa:
-    show-sql: true
+    show-sql: false
+    open-in-view: false
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update}
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
+    baseline-version: 1
   jackson:
     time-zone: UTC
     default-property-inclusion: non_null
@@ -33,24 +38,28 @@ server:
 
 api:
   version-prefix: ${API_VERSION_PREFIX:/v1}
+  manutencao:
+    enabled: ${API_MANUTENCAO_ENABLED:false}
 
 management:
   endpoints:
     web:
       base-path: ${api.version-prefix}/actuator
       exposure:
-        include: health
+        include: health,metrics
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: never
   health:
     db:
       enabled: true
 
 logging:
   level:
-    org.hibernate.SQL: DEBUG
-    org.hibernate.orm.jdbc.bind: TRACE
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: OFF
+  pattern:
+    level: "%5p [requestId=%X{requestId:-}]"
 
 springdoc:
   swagger-ui:

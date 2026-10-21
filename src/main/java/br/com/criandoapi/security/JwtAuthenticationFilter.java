@@ -1,89 +1,98 @@
 package br.com.criandoapi.security;
 
+import br.com.criandoapi.entity.Usuario;
+import br.com.criandoapi.record.ErroResponse;
 import br.com.criandoapi.repository.UsuarioRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-
     private final JwtService jwtService;
     private final UsuarioRepository usuarioRepository;
+    private final ObjectMapper objectMapper;
+    private final String apiPrefix;
 
-    public JwtAuthenticationFilter(JwtService jwtService, UsuarioRepository usuarioRepository) {
+    public JwtAuthenticationFilter(JwtService jwtService, UsuarioRepository usuarioRepository,
+                                   ObjectMapper objectMapper, String apiPrefix) {
         this.jwtService = jwtService;
         this.usuarioRepository = usuarioRepository;
+        this.objectMapper = objectMapper;
+        this.apiPrefix = apiPrefix.equals("/") ? "" : apiPrefix.replaceAll("/$", "");
+    }
+
+    private String path(HttpServletRequest request) {
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        if (!apiPrefix.isEmpty() && (path.equals(apiPrefix) || path.startsWith(apiPrefix + "/"))) {
+            path = path.substring(apiPrefix.length());
+        }
+        return path;
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = removeApiVersionPrefix(extractPathWithoutContext(request));
-        String method = request.getMethod();
-
-        // POST /usuarios — criar conta sem token
-        boolean criarUsuarioSemToken = "/usuarios".equals(path) && "POST".equalsIgnoreCase(method);
-
-        // GET /produtos/** — listagem pública de produtos
-//        boolean produtosPublico = path.startsWith("/produtos") && "GET".equalsIgnoreCase(method);
-
-        return path.startsWith("/auth/")
-                || criarUsuarioSemToken
-//                || produtosPublico
-                || path.startsWith("/actuator/health")
-                || path.startsWith("/swagger-ui")
-                || path.startsWith("/api-docs")
-                || path.startsWith("/v3/api-docs")
+        String path = path(request);
+        return path.equals("/auth/login") || path.equals("/auth/registro")
+                || (path.equals("/usuarios") && request.getMethod().equals("POST"))
+                || path.equals("/actuator/health") || path.startsWith("/actuator/health/")
+                || path.equals("/swagger-ui.html") || path.startsWith("/swagger-ui/")
+                || path.equals("/api-docs") || path.startsWith("/api-docs/")
+                || path.equals("/v3/api-docs") || path.startsWith("/v3/api-docs/")
                 || path.equals("/error");
     }
 
-    private String extractPathWithoutContext(HttpServletRequest request) {
-        String requestUri = request.getRequestURI();
-        String contextPath = request.getContextPath();
-
-        if (contextPath == null || contextPath.isEmpty()) {
-            return requestUri;
-        }
-
-        String normalizedPath = requestUri.substring(contextPath.length());
-        return normalizedPath.isEmpty() ? "/" : normalizedPath;
-    }
-
-    private String removeApiVersionPrefix(String path) {
-        if (path == null || path.isBlank()) {
-            return "/";
-        }
-
-        String normalizedPath = path.startsWith("/") ? path : "/" + path;
-        return normalizedPath.replaceFirst("^/v\\d+(?=/|$)", "");
-    }
-
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        String authorizationHeader = request.getHeader("Authorization");
-
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token ausente");
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+        String header = request.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ") || header.length() == 7) {
+            erro(request, response, 401, "Token ausente");
             return;
         }
-
-        String token = authorizationHeader.substring(7);
-
+        Usuario usuario;
         try {
+            String token = header.substring(7);
             String email = jwtService.extractUsername(token);
-
-            if (email == null || usuarioRepository.findByEmail(email).isEmpty() || !jwtService.isTokenValid(token, email)) {
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token invalido");
+            if (email == null || !jwtService.isTokenValid(token, email)) {
+                erro(request, response, 401, "Token invalido");
                 return;
             }
-
-            request.setAttribute("usuarioEmail", email);
-            filterChain.doFilter(request, response);
-        } catch (Exception e) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token invalido");
+            usuario = usuarioRepository.findByEmail(email).orElse(null);
+        } catch (JwtException | IllegalArgumentException ex) {
+            erro(request, response, 401, "Token invalido");
+            return;
         }
+        if (usuario == null) {
+            erro(request, response, 401, "Token invalido");
+            return;
+        }
+        UsuarioAutenticado autenticado = UsuarioAutenticado.of(usuario);
+        String path = path(request);
+        boolean produto = path.equals("/produtos") || path.startsWith("/produtos/");
+        boolean manutencao = path.equals("/manutencao") || path.startsWith("/manutencao/");
+        boolean metricas = path.equals("/actuator/metrics") || path.startsWith("/actuator/metrics/");
+        if (((produto && !request.getMethod().equals("GET")) || manutencao || metricas)
+                && autenticado.role() != br.com.criandoapi.entity.UsuarioRole.ADMIN) {
+            erro(request, response, 403, "Operacao restrita a administradores");
+            return;
+        }
+        request.setAttribute("usuarioAutenticado", autenticado);
+        // Downstream errors must retain their original status, never become invalid-token errors.
+        filterChain.doFilter(request, response);
+    }
+
+    private void erro(HttpServletRequest request, HttpServletResponse response, int status, String mensagem) throws IOException {
+        response.setStatus(status);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        objectMapper.writeValue(response.getWriter(), ErroResponse.of(status,
+                status == 401 ? "Nao autorizado" : "Acesso negado", mensagem, request.getRequestURI()));
     }
 }

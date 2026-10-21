@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "api.manutencao.enabled", havingValue = "true")
 @RestController
 @RequestMapping("${api.version-prefix}/manutencao")
 @Tag(name = "Manutenção", description = "Endpoints de apoio para automacao de testes (uso local/estudo)")
@@ -35,7 +36,8 @@ public class ManutencaoController {
             @ApiResponse(responseCode = "401", description = "401 Unauthorized - Token ausente/invalido"),
             @ApiResponse(responseCode = "500", description = "500 Internal Server Error - Erro inesperado")
     })
-    public ResponseEntity<Void> limparBanco() {
+    public ResponseEntity<Void> limparBanco(@org.springframework.web.bind.annotation.RequestAttribute("usuarioAutenticado") br.com.criandoapi.security.UsuarioAutenticado autenticado) {
+        autenticado.exigirAdministrador();
         manutencaoService.limparBanco();
         return ResponseEntity.noContent().build();
     }

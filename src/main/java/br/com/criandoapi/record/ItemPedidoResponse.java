@@ -12,7 +12,7 @@ public record ItemPedidoResponse(
         @Schema(description = "ID do produto referenciado", example = "1")
         Long produtoId,
 
-        @Schema(description = "Nome do produto no momento do pedido", example = "Notebook Dell Inspiron 15")
+        @Schema(description = "Nome atual do produto", example = "Notebook Dell Inspiron 15")
         String produtoNome,
 
         @Schema(description = "Quantidade solicitada do produto", example = "2")

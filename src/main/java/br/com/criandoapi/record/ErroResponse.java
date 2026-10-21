@@ -19,9 +19,32 @@ public record ErroResponse(
         String path,
 
         @Schema(description = "Data e hora em que o erro ocorreu", example = "2026-06-21T10:00:00")
-        LocalDateTime timestamp
+        LocalDateTime timestamp,
+
+        @Schema(description = "Codigo estavel para tratamento pelo cliente", example = "RECURSO_NAO_ENCONTRADO")
+        String codigo,
+
+        @Schema(description = "Identificador de correlacao retornado em X-Request-ID")
+        String requestId,
+
+        java.util.List<ErroValidacaoResponse.CampoErro> campos
 ) {
+    public static String codigo(int status) {
+        return switch (status) {
+            case 400 -> "REQUISICAO_INVALIDA";
+            case 401 -> "NAO_AUTENTICADO";
+            case 403 -> "ACESSO_NEGADO";
+            case 404 -> "RECURSO_NAO_ENCONTRADO";
+            case 405 -> "METODO_NAO_PERMITIDO";
+            case 409 -> "CONFLITO";
+            case 415 -> "TIPO_DE_CONTEUDO_INVALIDO";
+            case 422 -> "REGRA_DE_NEGOCIO";
+            default -> "ERRO_INTERNO";
+        };
+    }
+
     public static ErroResponse of(int status, String erro, String mensagem, String path) {
-        return new ErroResponse(status, erro, mensagem, path, LocalDateTime.now());
+        return new ErroResponse(status, erro, mensagem, path, LocalDateTime.now(java.time.Clock.systemUTC()),
+                codigo(status), org.slf4j.MDC.get("requestId"), java.util.List.of());
     }
 }
