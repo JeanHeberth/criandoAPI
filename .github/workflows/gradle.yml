@@ -311,6 +311,9 @@ jobs:
       - uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
+          # Risco aceito: spring-webmvc 6.2.x não tem versão corrigida (só Spring 7.0.9 / Spring Boot 4).
+          # A API não usa XsltView nem SSE com fragmentos de view. Remover ao migrar para o Spring Boot 4.
+          allow-ghsas: GHSA-pc63-qcmh-9cmg, GHSA-j9f9-w8pj-32f8
 
   # Roda apenas depois do CI verde do push na develop (needs: gate-qualidade).
   # Os checks obrigatórios da main já existem no SHA da develop, então o merge é liberado de imediato.
