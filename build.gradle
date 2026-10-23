@@ -10,6 +10,9 @@ group = 'br.com'
 version = '0.0.1-SNAPSHOT'
 description = 'criandoAPI'
 
+// Tomcat 10.1.55 (padrão do Spring Boot 3.5.16) tem avisos críticos corrigidos na 10.1.58.
+ext['tomcat.version'] = '10.1.61'
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
