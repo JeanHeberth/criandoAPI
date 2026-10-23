@@ -3,6 +3,7 @@ name: Pipeline CI
 # validate-git-constraints -> build -> (testeController | testeService | testeRepository) -> gate-qualidade
 #   -> promover-main (só em push na develop: abre PR develop -> main e faz o merge automático)
 # Fluxo: feature -> PR para develop (CI) -> push na develop (CI) -> promoção automática para a main.
+# Gates extras: cobertura (JaCoCo, no gate-qualidade), CodeQL e revisão de dependências. Falha na develop abre issue.
 on:
   pull_request:
     branches: [main, develop]
@@ -63,6 +64,8 @@ jobs:
     name: "build · build"
     needs: validate-git-constraints
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # submissão do dependency graph
     steps:
       - uses: actions/checkout@v4
 
@@ -72,6 +75,8 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
 
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          dependency-graph: generate-and-submit
 
       - name: Compilar e gerar WAR (sem testes)
         run: ./gradlew clean build bootWar -x test --stacktrace
@@ -105,6 +110,14 @@ jobs:
           path: build/test-results/test/*.xml
           if-no-files-found: error
 
+      - name: Publicar cobertura (JaCoCo)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-controller
+          path: build/jacoco/test.exec
+          if-no-files-found: error
+
   testeService:
     name: "testes · testeService"
     needs: build
@@ -126,6 +139,14 @@ jobs:
         with:
           name: test-results-service
           path: build/test-results/test/*.xml
+          if-no-files-found: error
+
+      - name: Publicar cobertura (JaCoCo)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-service
+          path: build/jacoco/test.exec
           if-no-files-found: error
 
   # Não há testes dedicados de repository: a camada é exercitada pelos testes de
@@ -153,15 +174,37 @@ jobs:
           path: build/test-results/test/*.xml
           if-no-files-found: error
 
+      - name: Publicar cobertura (JaCoCo)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-repository
+          path: build/jacoco/test.exec
+          if-no-files-found: error
+
   gate-qualidade:
     name: "gates · gate-qualidade"
     needs: [testeController, testeService, testeRepository]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: gradle/actions/setup-gradle@v4
+
       - uses: actions/download-artifact@v4
         with:
           pattern: test-results-*
           path: results
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: jacoco-*
+          path: build/jacoco-merged
 
       - name: Verificar execução e falhas dos testes
         run: |
@@ -194,11 +237,84 @@ jobs:
               sys.exit("Gate reprovado: " + "; ".join(problems))
           EOF
 
+      - name: Cobertura combinada (mínimo de 70% das linhas)
+        run: ./gradlew jacocoMergedReport jacocoMergedVerification --stacktrace
+
+      - name: Resumo da cobertura
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import os
+          import xml.etree.ElementTree as ET
+
+          path = 'build/reports/jacoco/jacocoMergedReport/jacocoMergedReport.xml'
+          if not os.path.exists(path):
+              raise SystemExit(0)
+          rows = []
+          for c in ET.parse(path).getroot().findall('counter'):
+              missed, covered = int(c.get('missed')), int(c.get('covered'))
+              rows.append(f"| {c.get('type')} | {covered} | {missed} | {covered / (missed + covered):.1%} |")
+          table = "| Métrica | Cobertas | Perdidas | % |\n|---|---|---|---|\n" + "\n".join(rows)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              out.write("### Cobertura (JaCoCo)\n" + table + "\n")
+          EOF
+
+      - name: Publicar relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: build/reports/jacoco/jacocoMergedReport/html
+          if-no-files-found: ignore
+
+  gate-seguranca-codigo:
+    name: "gates · gate-seguranca-codigo"
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin
+          build-mode: manual
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compilar para análise
+        run: ./gradlew compileJava --no-build-cache
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:java
+
+  # Compara o grafo de dependências do PR com o da base e reprova vulnerabilidade alta ou superior.
+  gate-seguranca-dependencias:
+    name: "gates · gate-seguranca-dependencias"
+    needs: build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
   # Roda apenas depois do CI verde do push na develop (needs: gate-qualidade).
   # Os checks obrigatórios da main já existem no SHA da develop, então o merge é liberado de imediato.
   promover-main:
     name: "promover · promover-main"
-    needs: gate-qualidade
+    needs: [gate-qualidade, gate-seguranca-codigo]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     permissions:
@@ -227,3 +343,36 @@ jobs:
 
           # --auto falha se o PR já estiver liberado; nesse caso faz o merge direto.
           gh pr merge "$PR" --merge --auto || gh pr merge "$PR" --merge
+
+  # Abre uma issue quando qualquer etapa falha num push na develop (inclui a promoção para a main).
+  notificar-falha:
+    name: "notificar · notificar-falha"
+    needs:
+      - validate-git-constraints
+      - build
+      - testeController
+      - testeService
+      - testeRepository
+      - gate-qualidade
+      - gate-seguranca-codigo
+      - promover-main
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/develop' && contains(needs.*.result, 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Abrir issue de falha
+        run: |
+          SHORT="${GITHUB_SHA:0:7}"
+          TITLE="CI falhou na develop ($SHORT)"
+          EXISTE=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number -q '.[0].number')
+          if [ -n "$EXISTE" ]; then
+            echo "Issue #$EXISTE já aberta para este commit."
+            exit 0
+          fi
+          gh issue create --title "$TITLE" --body "A pipeline falhou no push da develop (commit $GITHUB_SHA). A promoção para a main não foi concluída.
+
+          Execução: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
