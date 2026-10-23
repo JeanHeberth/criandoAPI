@@ -5,8 +5,9 @@ on:
   pull_request:
     branches: [main, develop]
     types: [opened, synchronize, reopened]
+  # Branches de trabalho rodam só via pull_request; push evita execução em duplicata.
   push:
-    branches: [main, develop, 'feature/**']
+    branches: [main, develop]
 
 concurrency:
   group: pipeline-${{ github.ref }}
