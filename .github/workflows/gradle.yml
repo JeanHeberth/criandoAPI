@@ -1,7 +1,7 @@
 name: Pipeline CI
 
 # validate-git-constraints -> build -> (testeController | testeService | testeRepository) -> gate-qualidade
-#   -> promover-main (só em push na develop: abre PR develop -> main e faz o merge automático)
+#   -> merge-automatico-main (só em push na develop: abre PR develop -> main e faz o merge automático)
 # Fluxo: feature -> PR para develop (CI) -> push na develop (CI) -> promoção automática para a main.
 # Gates extras: cobertura (JaCoCo, no gate-qualidade), CodeQL e revisão de dependências. Falha na develop abre issue.
 on:
@@ -312,8 +312,8 @@ jobs:
 
   # Roda apenas depois do CI verde do push na develop (needs: gate-qualidade).
   # Os checks obrigatórios da main já existem no SHA da develop, então o merge é liberado de imediato.
-  promover-main:
-    name: "promover · promover-main"
+  merge-automatico-main:
+    name: "promover · merge-automatico-main"
     needs: [gate-qualidade, gate-seguranca-codigo]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
@@ -355,7 +355,7 @@ jobs:
       - testeRepository
       - gate-qualidade
       - gate-seguranca-codigo
-      - promover-main
+      - merge-automatico-main
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/develop' && contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     permissions:
