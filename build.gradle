@@ -1,3 +1,13 @@
+// Fixa o Jackson usado pelo próprio plugin do Spring Boot (classpath do build): 2.21.4 tem avisos altos.
+buildscript {
+    dependencies {
+        constraints {
+            classpath('com.fasterxml.jackson.core:jackson-core:2.21.8')
+            classpath('com.fasterxml.jackson.core:jackson-databind:2.21.8')
+        }
+    }
+}
+
 plugins {
     id 'java'
     id 'jacoco'
