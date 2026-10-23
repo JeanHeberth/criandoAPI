@@ -7,7 +7,7 @@ API REST de estudo, construída com **Spring Boot 3.5** e **Java 21**, para prá
 ## Stack
 
 - Java 21
-- Spring Boot 3.5.7 (Web, Data JPA, Validation, Actuator, DevTools)
+- Spring Boot 3.5.16 (Web, Data JPA, Validation, Actuator, DevTools)
 - Spring Security (filtro JWT customizado, sem `spring-boot-starter-security`)
 - MySQL (via `mysql-connector-j`)
 - JJWT 0.12.6 (geração/validação de tokens)
