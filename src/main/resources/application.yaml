@@ -41,7 +41,6 @@ api:
   manutencao:
     enabled: ${API_MANUTENCAO_ENABLED:false}
 
-
 management:
   endpoints:
     web:
