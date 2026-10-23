@@ -297,10 +297,12 @@ jobs:
           category: /language:java
 
   # Compara o grafo de dependências do PR com o da base e reprova vulnerabilidade alta ou superior.
+  # Só roda em PRs para a develop: a main não recebe snapshot (merges do workflow não disparam push),
+  # e sem base o review trataria todas as dependências como novas.
   gate-seguranca-dependencias:
     name: "gates · gate-seguranca-dependencias"
     needs: build
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.base_ref == 'develop'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -309,6 +311,9 @@ jobs:
       - uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
+          # Risco aceito: spring-webmvc 6.2.x não tem versão corrigida (só Spring 7.0.9 / Spring Boot 4).
+          # A API não usa XsltView nem SSE com fragmentos de view. Remover ao migrar para o Spring Boot 4.
+          allow-ghsas: GHSA-pc63-qcmh-9cmg, GHSA-j9f9-w8pj-32f8
 
   # Roda apenas depois do CI verde do push na develop (needs: gate-qualidade).
   # Os checks obrigatórios da main já existem no SHA da develop, então o merge é liberado de imediato.
