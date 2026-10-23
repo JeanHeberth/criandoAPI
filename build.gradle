@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'jacoco'
     id 'war'
     id 'org.springframework.boot' version '3.5.7'
     id 'io.spring.dependency-management' version '1.1.7'
@@ -73,4 +74,40 @@ tasks.register('mysqlTest', Test) {
     classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform { includeTags 'mysql' }
     shouldRunAfter tasks.named('test')
+}
+
+jacoco {
+    toolVersion = '0.8.13'
+}
+
+// Cada job de teste do CI gera o seu test.exec. O gate de qualidade baixa todos em
+// build/jacoco-merged/ e calcula a cobertura combinada.
+def jacocoMergedData = fileTree(layout.buildDirectory.dir('jacoco-merged')) {
+    include '**/*.exec'
+}
+
+tasks.register('jacocoMergedReport', JacocoReport) {
+    description = 'Relatório de cobertura combinando os .exec de build/jacoco-merged'
+    group = 'verification'
+    executionData.from(jacocoMergedData)
+    sourceSets sourceSets.main
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.register('jacocoMergedVerification', JacocoCoverageVerification) {
+    description = 'Falha se a cobertura combinada ficar abaixo do mínimo'
+    group = 'verification'
+    executionData.from(jacocoMergedData)
+    sourceSets sourceSets.main
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                minimum = 0.70
+            }
+        }
+    }
 }
