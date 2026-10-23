@@ -1,6 +1,8 @@
 name: Pipeline CI
 
 # validate-git-constraints -> build -> (testeController | testeService | testeRepository) -> gate-qualidade
+#   -> promover-main (só em push na develop: abre PR develop -> main e faz o merge automático)
+# Fluxo: feature -> PR para develop (CI) -> push na develop (CI) -> promoção automática para a main.
 on:
   pull_request:
     branches: [main, develop]
@@ -32,6 +34,14 @@ jobs:
           echo "Branch: $BRANCH"
           if ! echo "$BRANCH" | grep -Eq '^(main|develop|(feature|bugfix|hotfix|release)/.+)$'; then
             echo "::error::Nome de branch inválido: '$BRANCH'. Use main, develop ou feature|bugfix|hotfix|release/<descricao>."
+            exit 1
+          fi
+
+      - name: Validar origem do PR para a main
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        run: |
+          if [ "$GITHUB_HEAD_REF" != "develop" ]; then
+            echo "::error::PRs para a main só podem vir da develop (origem: '$GITHUB_HEAD_REF'). Abra o PR para a develop."
             exit 1
           fi
 
@@ -183,3 +193,37 @@ jobs:
           if problems:
               sys.exit("Gate reprovado: " + "; ".join(problems))
           EOF
+
+  # Roda apenas depois do CI verde do push na develop (needs: gate-qualidade).
+  # Os checks obrigatórios da main já existem no SHA da develop, então o merge é liberado de imediato.
+  promover-main:
+    name: "promover · promover-main"
+    needs: gate-qualidade
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Abrir PR develop -> main e mergear (merge commit)
+        run: |
+          AHEAD=$(gh api "repos/$GH_REPO/compare/main...develop" -q .ahead_by)
+          if [ "$AHEAD" = "0" ]; then
+            echo "develop não tem commits novos em relação à main. Nada a promover."
+            exit 0
+          fi
+
+          PR=$(gh pr list --base main --head develop --state open --json number -q '.[0].number')
+          if [ -z "$PR" ]; then
+            gh pr create --base main --head develop \
+              --title "Promove develop para main ($GITHUB_SHA)" \
+              --body "Promoção automática: CI verde na develop no commit $GITHUB_SHA."
+            PR=$(gh pr list --base main --head develop --state open --json number -q '.[0].number')
+          fi
+          echo "PR de promoção: #$PR"
+
+          # --auto falha se o PR já estiver liberado; nesse caso faz o merge direto.
+          gh pr merge "$PR" --merge --auto || gh pr merge "$PR" --merge
