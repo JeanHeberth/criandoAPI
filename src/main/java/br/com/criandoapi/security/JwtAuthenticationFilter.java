@@ -3,7 +3,7 @@ package br.com.criandoapi.security;
 import br.com.criandoapi.entity.Usuario;
 import br.com.criandoapi.record.ErroResponse;
 import br.com.criandoapi.repository.UsuarioRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

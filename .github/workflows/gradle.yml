@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 env:
-  JAVA_VERSION: '21'
+  JAVA_VERSION: '27'
 
 jobs:
   validate-git-constraints:
@@ -290,7 +290,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Compilar para análise
-        run: ./gradlew compileJava --no-build-cache
+        run: ./gradlew compileJava --no-build-cache --no-daemon --rerun-tasks
 
       - uses: github/codeql-action/analyze@v3
         with:
