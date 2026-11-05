@@ -20,7 +20,9 @@ group = 'br.com'
 version = '0.0.1-SNAPSHOT'
 description = 'criandoAPI'
 
-// Boot 4.1.1 já traz Tomcat 11.0.24 (o override 10.1.x da linha 3.5 não vale mais).
+// Boot 4.1.1 traz Tomcat 11.0.24, com avisos críticos corrigidos na 11.0.25 (o override 10.1.x da linha 3.5 não vale mais).
+ext['tomcat.version'] = '11.0.25'
+
 // jackson-bom (Jackson 3) fica no padrão do Boot; fixa só o Jackson 2 (usado pelo jjwt-jackson): 2.21.5 tem avisos altos.
 ext['jackson-2-bom.version'] = '2.21.8'
 
