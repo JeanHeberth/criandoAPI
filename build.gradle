@@ -1,9 +1,11 @@
-// Fixa o Jackson usado pelo próprio plugin do Spring Boot (classpath do build): 2.21.4 tem avisos altos.
+// Fixa o Jackson usado pelo próprio plugin do Spring Boot (classpath do build): 2.21.4 e 3.1.5 têm avisos altos.
 buildscript {
     dependencies {
         constraints {
             classpath('com.fasterxml.jackson.core:jackson-core:2.21.8')
             classpath('com.fasterxml.jackson.core:jackson-databind:2.21.8')
+            classpath('tools.jackson.core:jackson-core:3.1.8')
+            classpath('tools.jackson.core:jackson-databind:3.1.8')
         }
     }
 }
@@ -23,7 +25,8 @@ description = 'criandoAPI'
 // Boot 4.1.1 traz Tomcat 11.0.24, com avisos críticos corrigidos na 11.0.25 (o override 10.1.x da linha 3.5 não vale mais).
 ext['tomcat.version'] = '11.0.25'
 
-// jackson-bom (Jackson 3) fica no padrão do Boot; fixa só o Jackson 2 (usado pelo jjwt-jackson): 2.21.5 tem avisos altos.
+// Fixa o Jackson 3 (3.1.5 do Boot tem aviso alto no jackson-core, corrigido na 3.1.7) e o Jackson 2 (usado pelo jjwt-jackson): 2.21.5 tem avisos altos.
+ext['jackson-bom.version'] = '3.1.8'
 ext['jackson-2-bom.version'] = '2.21.8'
 
 java {
