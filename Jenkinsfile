@@ -27,15 +27,28 @@ pipeline {
             steps {
                 script {
                     if (isUnix()) {
-                        sh '''
-                            echo "Validando Java..."
-                            java -version
-                        '''
-                    } else {
-                        bat '''
-                            @echo off
-                            echo Validando Java...
-                            java -version
+                                   sh '''
+                                       echo "Java do agente Jenkins:"
+                                       java -version
+
+                                       echo "Versao do Gradle:"
+                                       ./gradlew --version
+
+                                       echo "JDKs reconhecidos pelo Gradle:"
+                                       ./gradlew -q javaToolchains
+                                   '''
+                               } else {
+                                   bat '''
+                                       @echo off
+
+                                       echo Java do agente Jenkins:
+                                       java -version
+
+                                       echo Versao do Gradle:
+                                       call gradlew.bat --version
+
+                                       echo JDKs reconhecidos pelo Gradle:
+                                       call gradlew.bat -q javaToolchains
                         '''
                     }
                 }

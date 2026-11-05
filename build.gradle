@@ -1,9 +1,11 @@
-// Fixa o Jackson usado pelo próprio plugin do Spring Boot (classpath do build): 2.21.4 tem avisos altos.
+// Fixa o Jackson usado pelo próprio plugin do Spring Boot (classpath do build): 2.21.4 e 3.1.5 têm avisos altos.
 buildscript {
     dependencies {
         constraints {
             classpath('com.fasterxml.jackson.core:jackson-core:2.21.8')
             classpath('com.fasterxml.jackson.core:jackson-databind:2.21.8')
+            classpath('tools.jackson.core:jackson-core:3.1.8')
+            classpath('tools.jackson.core:jackson-databind:3.1.8')
         }
     }
 }
@@ -12,7 +14,7 @@ plugins {
     id 'java'
     id 'jacoco'
     id 'war'
-    id 'org.springframework.boot' version '3.5.16'
+    id 'org.springframework.boot' version '4.1.1'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -20,15 +22,16 @@ group = 'br.com'
 version = '0.0.1-SNAPSHOT'
 description = 'criandoAPI'
 
-// Tomcat 10.1.55 (padrão do Spring Boot 3.5.16) tem avisos críticos corrigidos na 10.1.58.
-ext['tomcat.version'] = '10.1.61'
+// Boot 4.1.1 traz Tomcat 11.0.24, com avisos críticos corrigidos na 11.0.25 (o override 10.1.x da linha 3.5 não vale mais).
+ext['tomcat.version'] = '11.0.25'
 
-// jackson-core 2.21.4 (padrão do Spring Boot 3.5.16) tem avisos altos corrigidos na 2.21.7.
-ext['jackson-bom.version'] = '2.21.8'
+// Fixa o Jackson 3 (3.1.5 do Boot tem aviso alto no jackson-core, corrigido na 3.1.7) e o Jackson 2 (usado pelo jjwt-jackson): 2.21.5 tem avisos altos.
+ext['jackson-bom.version'] = '3.1.8'
+ext['jackson-2-bom.version'] = '2.21.8'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(27)
     }
 }
 
@@ -37,36 +40,37 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.2.0'
 
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 
-    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
     runtimeOnly 'org.flywaydb:flyway-mysql'
     runtimeOnly 'com.mysql:mysql-connector-j'
 
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
+    compileOnly 'org.projectlombok:lombok:1.18.48'
+    annotationProcessor 'org.projectlombok:lombok:1.18.48'
 
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
-    providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
+    providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat-runtime'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testRuntimeOnly 'com.h2database:h2'
-    testImplementation 'org.testcontainers:junit-jupiter'
-    testImplementation 'org.testcontainers:mysql'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-mysql'
 
-    testCompileOnly 'org.projectlombok:lombok'
-    testAnnotationProcessor 'org.projectlombok:lombok'
+    testCompileOnly 'org.projectlombok:lombok:1.18.48'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.48'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -93,7 +97,7 @@ tasks.register('mysqlTest', Test) {
 }
 
 jacoco {
-    toolVersion = '0.8.13'
+    toolVersion = '0.8.16'
 }
 
 // Cada job de teste do CI gera o seu test.exec. O gate de qualidade baixa todos em

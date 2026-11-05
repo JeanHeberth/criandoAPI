@@ -1,25 +1,25 @@
 # criandoAPI
 
-API REST de estudo, construída com **Spring Boot 3.5** e **Java 21**, para prática de testes de API. Implementa autenticação via JWT e CRUDs de Usuários, Produtos e Pedidos, com regras de negócio de estoque e máquina de estados de pedido.
+API REST de estudo, construída com **Spring Boot 4.1** e **Java 27**, para prática de testes de API. Implementa autenticação via JWT e CRUDs de Usuários, Produtos e Pedidos, com regras de negócio de estoque e máquina de estados de pedido.
 
 > Documentação interativa (Swagger UI): http://localhost:8087/criandoAPI/v1/swagger-ui.html *(com a API em execução localmente, portas/paths padrão)*
 
 ## Stack
 
-- Java 21
-- Spring Boot 3.5.16 (Web, Data JPA, Validation, Actuator, DevTools)
+- Java 27
+- Spring Boot 4.1.1 (WebMVC, Jackson 3, Data JPA, Validation, Actuator, DevTools)
 - Spring Security (filtro JWT customizado, sem `spring-boot-starter-security`)
 - MySQL (via `mysql-connector-j`)
 - JJWT 0.12.6 (geração/validação de tokens)
-- springdoc-openapi 2.8.13 (Swagger UI)
+- springdoc-openapi 3.2.0 (Swagger UI)
 - Lombok
 - Gradle (wrapper incluído)
-- Flyway (migrations versionadas; Hibernate apenas valida o schema)
+- Flyway 12 (migrations versionadas; Hibernate apenas valida o schema)
 - JUnit 5, Mockito, MockMvc, H2 e Testcontainers/MySQL (testes)
 
 ## Pré-requisitos
 
-- JDK 21
+- JDK 27
 - MySQL em execução (local ou remoto)
 
 ## Configuração
