@@ -37,6 +37,8 @@ java {
 
 repositories {
     mavenCentral()
+    // Espelho do Maven Central (fallback para HTTP 429 no runner do GitHub)
+    maven { url = 'https://maven-central.storage-download.googleapis.com/maven2/' }
 }
 
 dependencies {
