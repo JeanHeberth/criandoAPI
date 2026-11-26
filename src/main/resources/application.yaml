@@ -39,7 +39,7 @@ server:
 api:
   version-prefix: ${API_VERSION_PREFIX:/v1}
   manutencao:
-    enabled: ${API_MANUTENCAO_ENABLED:false}
+    enabled: ${API_MANUTENCAO_ENABLED:true}
 
 management:
   endpoints:
