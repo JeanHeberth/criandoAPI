@@ -67,3 +67,4 @@ springdoc:
   api-docs:
     path: ${api.version-prefix:/v1}/api-docs
   show-actuator: true
+
