@@ -98,6 +98,8 @@ jobs:
           distribution: corretto
           java-version: ${{ env.JAVA_VERSION }}
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
 
       - name: Testes de controller
         run: ./gradlew test --tests 'br.com.criandoapi.controller.*' --stacktrace
@@ -129,6 +131,8 @@ jobs:
           distribution: corretto
           java-version: ${{ env.JAVA_VERSION }}
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
 
       - name: Testes de service
         run: ./gradlew test --tests 'br.com.criandoapi.services.*' --stacktrace
@@ -162,6 +166,8 @@ jobs:
           distribution: corretto
           java-version: ${{ env.JAVA_VERSION }}
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
 
       - name: Testes de repository / integração
         run: ./gradlew test --tests 'br.com.criandoapi.integration.*' --stacktrace
@@ -195,6 +201,8 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
 
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
 
       - uses: actions/download-artifact@v4
         with:
